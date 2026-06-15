@@ -201,7 +201,7 @@ def obtener_metricas_dashboard(uow: SQLModelUnitOfWork) -> DashboardMetricasRead
     de análisis más completa sin mezclar lógica SQL en la UI.
     """
 
-    estados_venta = ["CONFIRMADO", "EN_PREPARACION", "EN_PREP", "ENTREGADO"]
+    estados_venta = ["CONFIRMADO", "EN_PREP", "ENTREGADO"]
     hoy = datetime.now(timezone.utc).date()
     inicio_hoy = datetime.combine(hoy, datetime.min.time(), tzinfo=timezone.utc)
     inicio_7_dias = inicio_hoy - timedelta(days=6)

@@ -31,10 +31,10 @@ def _configurar_cloudinary() -> None:
 def _validar_folder(folder: str | None) -> str:
     settings = get_settings()
     base = (settings.CLOUDINARY_FOLDER or "food_store").strip().strip("/")
-    subfolder = (folder or "general").strip().strip("/")
+    subfolder = (folder or "general").strip()
+    subfolder = subfolder.replace("..", "").strip("/").replace(" ", "_")
     if not subfolder:
         subfolder = "general"
-    subfolder = subfolder.replace("..", "").replace(" ", "_")
     return f"{base}/{subfolder}"
 
 

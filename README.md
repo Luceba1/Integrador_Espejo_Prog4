@@ -97,7 +97,7 @@ El administrador puede gestionar productos, categorías, ingredientes, unidades 
 
   * PENDIENTE
   * CONFIRMADO
-  * EN_PREPARACION / EN_PREP
+  * EN_PREP
   * ENTREGADO
   * CANCELADO
 * Historial de estados append-only.
@@ -147,7 +147,7 @@ El administrador puede gestionar productos, categorías, ingredientes, unidades 
 
 ### Testing
 
-Tests automatizados por capas:
+Tests automatizados por capas y por módulos funcionales:
 
 * core
 * db
@@ -157,6 +157,12 @@ Tests automatizados por capas:
 * schemas
 * services
 * uow
+* functional/auth
+* functional/pedidos
+* functional/pagos
+* functional/estadisticas
+* functional/uploads
+* functional/websocket
 
 Ejemplo de ejecución:
 
@@ -167,7 +173,7 @@ pytest -v
 Resultado esperado:
 
 ```txt
-56 passed
+62 passed
 ```
 
 ## Estructura del proyecto

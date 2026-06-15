@@ -23,7 +23,7 @@ from app.uow.unit_of_work import SQLModelUnitOfWork
 
 # TPI v6 / EST-01: no incluir CANCELADO en métricas comerciales.
 # Se consideran ventas confirmadas los pedidos que ya pasaron el pago o la confirmación manual.
-ESTADOS_COMERCIALES = {"CONFIRMADO", "EN_PREPARACION", "EN_PREP", "ENTREGADO"}
+ESTADOS_COMERCIALES = {"CONFIRMADO", "EN_PREP", "ENTREGADO"}
 
 
 def _to_decimal(value) -> Decimal:

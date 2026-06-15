@@ -15,7 +15,7 @@ router = APIRouter(prefix="/cocina", tags=["KDS / WebSockets"])
 ROLES_KDS = {"ADMIN", "PEDIDOS"}
 KDSUserDep = Annotated[Usuario, Depends(require_roles("ADMIN", "PEDIDOS"))]
 UowDep = Annotated[SQLModelUnitOfWork, Depends(get_uow)]
-ESTADOS_COCINA = {"PENDIENTE", "CONFIRMADO", "EN_PREPARACION"}
+ESTADOS_COCINA = {"PENDIENTE", "CONFIRMADO", "EN_PREP"}
 
 
 def _extraer_token_ws(websocket: WebSocket, token_query: str | None) -> str | None:

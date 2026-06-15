@@ -20,12 +20,12 @@ ROLES = [
 ESTADOS_PEDIDO = [
     ("PENDIENTE", "Pendiente", 1, True, False),
     ("CONFIRMADO", "Confirmado", 2, True, False),
-    ("EN_PREPARACION", "En preparación", 3, False, False),
+    ("EN_PREP", "En preparación", 3, False, False),
     ("ENTREGADO", "Entregado", 4, False, True),
     ("CANCELADO", "Cancelado", 5, False, True),
 ]
 
-ESTADOS_OBSOLETOS = {"EN_PREP", "EN_CAMINO"}
+ESTADOS_OBSOLETOS = {"EN_PREPARACION", "EN_CAMINO"}
 
 FORMAS_PAGO = [
     ("MERCADOPAGO", "MercadoPago", "Pago online mediante MercadoPago Checkout Pro"),
@@ -102,6 +102,23 @@ def _ensure_v7_schema(session: Session) -> None:
     session.commit()
 
 
+
+def _migrar_en_preparacion_a_en_prep(session: Session) -> None:
+    """Migra bases existentes al código literal del TPI v6/ERD v7.
+
+    Versiones anteriores del integrador usaban EN_PREPARACION. El PDF define
+    EN_PREP como código oficial de la FSM, por eso se actualizan pedidos e
+    historial antes de marcar el estado viejo como obsoleto.
+    """
+    statements = [
+        "UPDATE pedido SET estado_codigo = 'EN_PREP' WHERE estado_codigo = 'EN_PREPARACION'",
+        "UPDATE historial_estado_pedido SET estado_desde = 'EN_PREP' WHERE estado_desde = 'EN_PREPARACION'",
+        "UPDATE historial_estado_pedido SET estado_hacia = 'EN_PREP' WHERE estado_hacia = 'EN_PREPARACION'",
+    ]
+    for statement in statements:
+        session.exec(text(statement))
+
+
 def run_seed() -> None:
     with Session(engine) as session:
         _ensure_v7_schema(session)
@@ -131,6 +148,9 @@ def run_seed() -> None:
             estado.activo = True
             estado.deleted_at = None
             session.add(estado)
+
+        session.flush()
+        _migrar_en_preparacion_a_en_prep(session)
 
         for codigo in ESTADOS_OBSOLETOS:
             estado = session.exec(select(EstadoPedido).where(EstadoPedido.codigo == codigo)).first()

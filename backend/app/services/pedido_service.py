@@ -15,7 +15,7 @@ from app.uow.unit_of_work import SQLModelUnitOfWork
 
 ESTADO_INICIAL = "PENDIENTE"
 ESTADO_CONFIRMADO = "CONFIRMADO"
-ESTADO_EN_PREPARACION = "EN_PREPARACION"
+ESTADO_EN_PREP = "EN_PREP"
 ESTADO_ENTREGADO = "ENTREGADO"
 ESTADO_CANCELADO = "CANCELADO"
 
@@ -24,8 +24,8 @@ ESTADO_CANCELADO = "CANCELADO"
 # Para EFECTIVO se permite que ADMIN/PEDIDOS confirme manualmente el pedido desde el panel.
 TRANSICIONES_OPERADOR = {
     ESTADO_INICIAL: {ESTADO_CONFIRMADO, ESTADO_CANCELADO},
-    ESTADO_CONFIRMADO: {ESTADO_EN_PREPARACION, ESTADO_CANCELADO},
-    ESTADO_EN_PREPARACION: {ESTADO_ENTREGADO, ESTADO_CANCELADO},
+    ESTADO_CONFIRMADO: {ESTADO_EN_PREP, ESTADO_CANCELADO},
+    ESTADO_EN_PREP: {ESTADO_ENTREGADO, ESTADO_CANCELADO},
 }
 TRANSICIONES_CLIENTE_CANCELACION = {ESTADO_INICIAL, ESTADO_CONFIRMADO}
 ROLES_GESTION_PEDIDOS = {"ADMIN", "PEDIDOS"}
@@ -366,7 +366,7 @@ def avanzar_estado(
             )
         _descontar_stock_confirmacion(uow, pedido)
 
-    if pedido.estado_codigo == ESTADO_EN_PREPARACION and nuevo_estado_codigo == ESTADO_CANCELADO:
+    if pedido.estado_codigo == ESTADO_EN_PREP and nuevo_estado_codigo == ESTADO_CANCELADO:
         if "ADMIN" not in set(roles_codigos(usuario)):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -377,7 +377,7 @@ def avanzar_estado(
     if (
         recuperar_stock
         and nuevo_estado_codigo == ESTADO_CANCELADO
-        and estado_anterior in {ESTADO_CONFIRMADO, ESTADO_EN_PREPARACION}
+        and estado_anterior in {ESTADO_CONFIRMADO, ESTADO_EN_PREP}
     ):
         _restaurar_stock_cancelacion(uow, pedido)
 

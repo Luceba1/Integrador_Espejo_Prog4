@@ -87,7 +87,7 @@
 - [x] Stores Zustand separados: carrito, sesión, pagos, WebSocket y UI.
 - [x] `pytest.ini` ajustado para evitar warning de pytest-asyncio.
 - [x] `npm run build` validado correctamente.
-- [x] `pytest -q` validado correctamente: 56 tests passing.
+- [x] `pytest -q` validado correctamente: 62 tests passing.
 
 
 ## Correcciones finales de calidad

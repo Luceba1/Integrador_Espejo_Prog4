@@ -13,8 +13,8 @@ const PAGE_SIZE = 10;
 
 const siguienteEstado: Record<string, string> = {
   PENDIENTE: "CONFIRMADO",
-  CONFIRMADO: "EN_PREPARACION",
-  EN_PREPARACION: "ENTREGADO",
+  CONFIRMADO: "EN_PREP",
+  EN_PREP: "ENTREGADO",
 };
 
 function formatMoney(value: number) {
@@ -64,7 +64,7 @@ export default function CajeroPedidosPage() {
     const ok = window.confirm(`¿Seguro que querés cancelar el pedido #${pedido.id}?`);
     if (!ok) return;
 
-    const puedeHaberConsumidoStock = ["CONFIRMADO", "EN_PREPARACION"].includes(pedido.estado_codigo);
+    const puedeHaberConsumidoStock = ["CONFIRMADO", "EN_PREP"].includes(pedido.estado_codigo);
     const recuperarStock = puedeHaberConsumidoStock
       ? window.confirm(
           "¿Querés recuperar los ingredientes al stock?\n\n" +

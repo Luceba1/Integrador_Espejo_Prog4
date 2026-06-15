@@ -16,7 +16,7 @@ function EstadoBadge({ estado }: { estado: string }) {
   const styles: Record<string, string> = {
     PENDIENTE: "bg-amber-500/15 text-amber-200",
     CONFIRMADO: "bg-sky-500/15 text-sky-200",
-    EN_PREPARACION: "bg-purple-500/15 text-purple-200",
+    EN_PREP: "bg-purple-500/15 text-purple-200",
     ENTREGADO: "bg-emerald-500/15 text-emerald-200",
     CANCELADO: "bg-rose-500/15 text-rose-200",
   };
