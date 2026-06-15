@@ -7,24 +7,34 @@ Tecnicatura Universitaria en Programación
 
 ## Integrantes
 
-> Completar los datos faltantes antes de entregar.
+> Completar únicamente los nombres de los integrantes antes de entregar.
 
-| Integrante | GitHub |
-|---|---:|---|---|
-| Lucas Pujada | https://github.com/Luceba1 |
-| Gianfranco Canciani |
-| Julio Leiva |
-| Bruno Rivera |
+| Integrante |
+|---|
+| Lucas Pujada |
+| Integrante 2 |
+| Integrante 3 |
+| Integrante 4 |
+
+---
+
+## Repositorio
+
+Repositorio del proyecto:
+
+```txt
+https://github.com/Luceba1/Integrador_Espejo_Prog4.git
+```
 
 ---
 
 ## Videos de entrega
 
-| Instancia | Link de YouTube | Observaciones |
-|---|---|---|
-| Video Parcial 1 | Pegar link acá | Completar |
-| Video Parcial 2 | Pegar link acá | Completar |
-| Video Final TPI | Pegar link acá | Completar |
+| Instancia | Link de YouTube |
+|---|---|
+| Video Parcial 1 | Pegar link acá |
+| Video Parcial 2 | Pegar link acá |
+| Video Final TPI | Pegar link acá |
 
 ---
 
