@@ -7,14 +7,12 @@ Tecnicatura Universitaria en Programación
 
 ## Integrantes
 
-> Completar únicamente los nombres de los integrantes antes de entregar.
-
 | Integrante |
 |---|
 | Lucas Pujada |
-| Integrante 2 |
-| Integrante 3 |
-| Integrante 4 |
+| Gianfranco Canciani |
+| Julio Leiva |
+| Bruno Rivera |
 
 ---
 
