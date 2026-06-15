@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlmodel import Session, select
 
-from app.core.db import engine
+from app.core.db import create_db_and_tables, engine
 from app.core.security import hash_password
 from app.models.estado_pedido import EstadoPedido
 from app.models.forma_pago import FormaPago
@@ -120,6 +120,8 @@ def _migrar_en_preparacion_a_en_prep(session: Session) -> None:
 
 
 def run_seed() -> None:
+    create_db_and_tables()
+
     with Session(engine) as session:
         _ensure_v7_schema(session)
         roles_por_codigo: dict[str, Rol] = {}
