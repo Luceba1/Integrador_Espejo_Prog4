@@ -9,12 +9,12 @@ Tecnicatura Universitaria en Programación
 
 > Completar los datos faltantes antes de entregar.
 
-| Integrante | Legajo | Rol / responsabilidad | GitHub |
+| Integrante | GitHub |
 |---|---:|---|---|
-| Lucas Pujada | Completar | Completar | https://github.com/Luceba1 |
-| Integrante 2 | Completar | Completar | Completar |
-| Integrante 3 | Completar | Completar | Completar |
-| Integrante 4 | Completar | Completar | Completar |
+| Lucas Pujada | https://github.com/Luceba1 |
+| Gianfranco Canciani |
+| Julio Leiva |
+| Bruno Rivera |
 
 ---
 
