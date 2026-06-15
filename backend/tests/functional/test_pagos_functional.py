@@ -40,8 +40,11 @@ def test_pagos_functional_sends_idempotency_key_to_mercadopago(monkeypatch):
     monkeypatch.setitem(sys.modules, "mercadopago.config", fake_config)
     monkeypatch.setenv("MP_ACCESS_TOKEN", "TEST-token")
     monkeypatch.setenv("NGROK_URL", "https://demo.ngrok-free.app")
-    get_settings.cache_clear()
-
+    monkeypatch.setenv(
+        "MP_WEBHOOK_URL",
+        "https://demo.ngrok-free.app/api/v1/pagos/webhook",
+    )
+get_settings.cache_clear()
     try:
         response = pago_service._crear_preferencia_mp(
             monto=1500.0,
