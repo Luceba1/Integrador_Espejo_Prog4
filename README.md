@@ -30,9 +30,9 @@ https://github.com/Luceba1/Integrador_Espejo_Prog4.git
 
 | Instancia | Link de YouTube |
 |---|---|
-| Video Parcial 1 | Pegar link acá |
-| Video Parcial 2 | Pegar link acá |
-| Video Final TPI | Pegar link acá |
+| Video Parcial 1 | https://www.youtube.com/watch?v=UBQqctKv3ps |
+| Video Parcial 2 | https://www.youtube.com/watch?v=RBDYG3Y-Fgo |
+| Video Final TPI | https://www.youtube.com/watch?v=-T0XDek7wBo |
 
 ---
 
