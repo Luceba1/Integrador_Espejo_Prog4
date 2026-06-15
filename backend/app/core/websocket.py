@@ -14,6 +14,7 @@ Canales soportados:
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from collections import defaultdict
 from typing import Any
 
@@ -93,20 +94,52 @@ class ConnectionManager:
         payload = {"event": event, "data": data}
         await self._send_to_many(self.active_connections, payload)
 
+    def _build_order_payload(self, event: str, data: dict[str, Any]) -> dict[str, Any]:
+        """Normaliza eventos al contrato WebSocket del TPI sin perder compatibilidad.
+
+        El PDF documenta eventos con campos `estado_nuevo`, `estado_anterior`,
+        `pedido_id`, `usuario_id`, `motivo` y `timestamp`. El frontend anterior
+        también usaba `new_state` y `changed_by`, por eso conservamos ambos.
+        """
+
+        event_map = {
+            "ORDER_CREATED": "pedido_creado",
+            "ORDER_STATE_CHANGED": "estado_cambiado",
+            "ORDER_PAYMENT_UPDATED": "pago_confirmado" if data.get("new_state") == "CONFIRMADO" else "pago_actualizado",
+        }
+        normalized = dict(data)
+        normalized.setdefault("estado_nuevo", normalized.get("new_state"))
+        normalized.setdefault("estado_anterior", normalized.get("old_state"))
+        normalized.setdefault("usuario_id", normalized.get("changed_by"))
+        normalized.setdefault("motivo", None)
+        normalized.setdefault("timestamp", datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"))
+
+        return {
+            "event": event_map.get(event, event),
+            "event_original": event,
+            "pedido_id": normalized.get("pedido_id"),
+            "usuario_id": normalized.get("usuario_id"),
+            "estado_anterior": normalized.get("estado_anterior"),
+            "estado_nuevo": normalized.get("estado_nuevo"),
+            "motivo": normalized.get("motivo"),
+            "timestamp": normalized.get("timestamp"),
+            "data": normalized,
+        }
+
     async def broadcast_admin(self, event: str, data: dict[str, Any]) -> None:
-        payload = {"event": event, "data": data}
+        payload = self._build_order_payload(event, data)
         await self._send_to_many(self.admin_connections, payload)
 
     async def broadcast_user(self, usuario_id: int | None, event: str, data: dict[str, Any]) -> None:
         if usuario_id is None:
             return
-        payload = {"event": event, "data": data}
+        payload = self._build_order_payload(event, data)
         await self._send_to_many(self.user_connections.get(usuario_id, set()), payload)
 
     async def broadcast_order(self, pedido_id: int | None, event: str, data: dict[str, Any]) -> None:
         if pedido_id is None:
             return
-        payload = {"event": event, "data": data}
+        payload = self._build_order_payload(event, data)
         await self._send_to_many(self.order_connections.get(pedido_id, set()), payload)
 
     async def broadcast_order_event(self, event: str, data: dict[str, Any]) -> None:

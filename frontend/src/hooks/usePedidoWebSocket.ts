@@ -8,6 +8,13 @@ export type PedidoWebSocketMode = "admin" | "mis-pedidos" | "pedido";
 
 export interface PedidoWsEvent {
   event: string;
+  event_original?: string;
+  pedido_id?: number;
+  usuario_id?: number | null;
+  estado_nuevo?: string | null;
+  estado_anterior?: string | null;
+  motivo?: string | null;
+  timestamp?: string;
   data: {
     pedido_id?: number;
     usuario_id?: number | null;
@@ -84,7 +91,7 @@ export function usePedidoWebSocket({ mode, pedidoId, enabled = true }: UsePedido
           registerEvent(parsed);
           // La consigna pide invalidación/sincronización del estado servidor ante eventos WS.
           void queryClient.invalidateQueries({ queryKey: ["pedidos"] });
-          void queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
+          void queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] });
         } catch {
           // Se ignoran mensajes no JSON para no cortar la conexión.
         }

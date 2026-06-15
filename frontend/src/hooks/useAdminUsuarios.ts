@@ -2,12 +2,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   deleteUsuario,
+  getDashboardMetricas,
   getRoles,
   getUsuarios,
   updateUsuario,
   updateUsuarioRoles,
   activarUsuario,
 } from "../services/adminService";
+
+export function useDashboardMetricas() {
+  return useQuery({
+    queryKey: ["admin", "dashboard"],
+    queryFn: getDashboardMetricas,
+  });
+}
 
 export function useRoles() {
   return useQuery({

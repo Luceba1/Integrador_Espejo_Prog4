@@ -124,6 +124,26 @@ El administrador puede gestionar productos, categorías, ingredientes, unidades 
 * Broadcast de cambios de estado.
 * Actualización en tiempo real sin polling.
 * Reconexión automática desde frontend.
+* Payload compatible con TPI: `event`, `pedido_id`, `estado_anterior`, `estado_nuevo`, `usuario_id`, `motivo` y `timestamp`.
+
+
+### Estadísticas y dashboard
+
+* Módulo `/api/v1/estadisticas` protegido por rol ADMIN.
+* Endpoints:
+
+  * `GET /api/v1/estadisticas/resumen`
+  * `GET /api/v1/estadisticas/ventas`
+  * `GET /api/v1/estadisticas/productos-top`
+  * `GET /api/v1/estadisticas/pedidos-por-estado`
+  * `GET /api/v1/estadisticas/ingresos`
+* Dashboard administrativo con KPIs y gráficos Recharts:
+
+  * Ventas de los últimos 7 días.
+  * Pedidos por estado.
+  * Ventas por forma de pago.
+  * Top productos vendidos.
+  * Alertas de stock bajo.
 
 ### Testing
 
@@ -409,3 +429,17 @@ No subir archivos sensibles:
 * archivos `.pyc`
 
 Subir solamente `.env.example`.
+
+## Correcciones finales de compatibilidad TPI v6
+
+Esta versión suma endpoints y pantallas para quedar más alineada con la especificación técnica v6:
+
+- Dashboard administrativo avanzado con KPIs, gráfico de tendencia de 7 días, pedidos por estado, ventas por forma de pago, top productos e ingredientes con stock crítico.
+- `GET /api/v1/admin/dashboard` para alimentar el panel con métricas comerciales, operativas, pagos y stock.
+- `GET /api/v1/productos/{id}/ingredientes` para listar receta/ingredientes de un producto.
+- `POST /api/v1/productos/{id}/ingredientes` para asociar o actualizar un ingrediente de la receta.
+- `PATCH /api/v1/productos/{id}/imagenes` para reemplazar la lista de imágenes Cloudinary del producto.
+- `GET /api/v1/pagos/{pedido_id}` para consultar el pago asociado a un pedido.
+- `DELETE /api/v1/pedidos/{id}` como alias de cancelación propia compatible con la especificación.
+
+El código mantiene también los endpoints ya usados por el frontend para no romper compatibilidad.

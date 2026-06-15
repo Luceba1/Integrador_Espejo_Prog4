@@ -134,3 +134,29 @@ async def cancelar_pedido_propio(
         },
     )
     return pedido
+
+
+@router.delete("/{pedido_id}", response_model=PedidoRead, status_code=status.HTTP_200_OK)
+async def cancelar_pedido_alias_tpi(
+    uow: UowDep,
+    usuario: CurrentUserDep,
+    pedido_id: int = Path(..., ge=1),
+    motivo: str = Query(default="Cancelación solicitada por el cliente.", min_length=3, max_length=255),
+) -> PedidoRead:
+    pedido = pedido_service.cancelar_propio(
+        uow,
+        pedido_id=pedido_id,
+        usuario=usuario,
+        motivo=motivo,
+    )
+    uow.session.commit()
+    await manager.broadcast_order_event(
+        "ORDER_STATE_CHANGED",
+        {
+            "pedido_id": pedido.id,
+            "usuario_id": pedido.usuario_id,
+            "new_state": pedido.estado_codigo,
+            "changed_by": usuario.id,
+        },
+    )
+    return pedido

@@ -4,7 +4,13 @@ import type {
   UsuarioAdmin,
   UsuarioAdminUpdatePayload,
   UsuarioRolesUpdatePayload,
+  DashboardMetricas,
 } from "../types/admin";
+
+export async function getDashboardMetricas() {
+  const response = await api.get<DashboardMetricas>("/admin/dashboard");
+  return response.data;
+}
 
 export async function getRoles() {
   const response = await api.get<Rol[]>("/admin/roles");

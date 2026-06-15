@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.core.auth_dependencies import UowDep, require_roles
 from app.models.usuario import Usuario
-from app.schemas.admin_schema import UsuarioAdminRead, UsuarioAdminUpdate, UsuarioRolesUpdate
+from app.schemas.admin_schema import DashboardMetricasRead, UsuarioAdminRead, UsuarioAdminUpdate, UsuarioRolesUpdate
 from app.schemas.auth_schema import RolRead
 from app.services.admin_service import (
     actualizar_usuario,
@@ -13,10 +13,19 @@ from app.services.admin_service import (
     eliminar_usuario,
     listar_usuarios,
     obtener_usuario_admin,
+    obtener_metricas_dashboard,
 )
 
 router = APIRouter(prefix="/admin", tags=["Administración"])
 AdminUserDep = Annotated[Usuario, Depends(require_roles("ADMIN"))]
+
+
+@router.get("/dashboard", response_model=DashboardMetricasRead)
+def obtener_dashboard_admin(
+    uow: UowDep,
+    _: AdminUserDep,
+) -> DashboardMetricasRead:
+    return obtener_metricas_dashboard(uow)
 
 
 @router.get("/roles", response_model=list[RolRead])

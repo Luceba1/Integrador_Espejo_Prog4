@@ -264,3 +264,55 @@ def activar(uow: SQLModelUnitOfWork, producto_id: int) -> Producto:
     except IntegrityError as exc:
         raise _integrity_error("No se pudo activar el producto.") from exc
     return _cargar_relaciones(uow, producto.id, incluir_eliminados=True)
+
+
+def listar_ingredientes_producto(uow: SQLModelUnitOfWork, producto_id: int):
+    producto = _cargar_relaciones(uow, producto_id)
+    return getattr(producto, "ingredientes_configurados", [])
+
+
+def asociar_ingrediente_producto(
+    uow: SQLModelUnitOfWork,
+    producto_id: int,
+    payload: ProductoIngredientePayload,
+):
+    _cargar_relaciones(uow, producto_id)
+    actuales = uow.productos.list_ingrediente_config(producto_id)
+    configs: list[ProductoIngredientePayload] = []
+    reemplazado = False
+
+    for actual in actuales:
+        if actual.ingrediente_id == payload.ingrediente_id:
+            configs.append(payload)
+            reemplazado = True
+        else:
+            configs.append(
+                ProductoIngredientePayload(
+                    ingrediente_id=actual.ingrediente_id,
+                    cantidad=actual.cantidad,
+                    unidad_medida_id=actual.unidad_medida_id,
+                    es_removible=actual.es_removible,
+                )
+            )
+
+    if not reemplazado:
+        configs.append(payload)
+
+    configs = _validar_config_ingredientes(uow, configs)
+    _aplicar_config_ingredientes(uow, producto_id, configs)
+    producto = _cargar_relaciones(uow, producto_id)
+    for config in getattr(producto, "ingredientes_configurados", []):
+        if config.ingrediente_id == payload.ingrediente_id:
+            return config
+    raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="No se pudo asociar el ingrediente.")
+
+
+def actualizar_imagenes(uow: SQLModelUnitOfWork, producto_id: int, imagenes_url: list[str]) -> Producto:
+    producto = _cargar_relaciones(uow, producto_id)
+    producto.imagenes_url = imagenes_url
+    producto.updated_at = datetime.now(timezone.utc)
+    try:
+        producto = uow.productos.update(producto)
+    except IntegrityError as exc:
+        raise _integrity_error("No se pudieron actualizar las imágenes del producto.") from exc
+    return _cargar_relaciones(uow, producto.id)

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 
 import { useCarrito } from "../../hooks/useCarrito";
 import type { Producto } from "../../types/producto";
+import { useUiStore } from "../../stores/uiStore";
 
 function formatMoney(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(value);
@@ -10,6 +11,7 @@ function formatMoney(value: number) {
 
 export default function ProductCard({ producto }: { producto: Producto }) {
   const { addProducto, items } = useCarrito();
+  const showToast = useUiStore((state) => state.showToast);
   const [added, setAdded] = useState(false);
   const imageUrl = producto.imagenes_url?.[0];
   const canAdd = producto.disponible && producto.stock_cantidad > 0;
@@ -20,6 +22,7 @@ export default function ProductCard({ producto }: { producto: Producto }) {
   function handleAdd() {
     if (!canAdd || reachedLimit) return;
     addProducto(producto, 1);
+    showToast("success", `${producto.nombre} agregado al carrito.`);
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1200);
   }

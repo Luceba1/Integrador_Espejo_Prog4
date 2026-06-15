@@ -6,6 +6,7 @@ import { useCarrito } from "../hooks/useCarrito";
 import { useCrearDireccion, useDirecciones } from "../hooks/useDirecciones";
 import { useCrearPedido, useFormasPago } from "../hooks/usePedidos";
 import { crearPreferenciaPago } from "../services/pagoService";
+import { usePagoStore } from "../stores/pagoStore";
 import type { DireccionPayload } from "../types/direccion";
 
 const COSTO_ENVIO_DEMO = 500;
@@ -17,6 +18,8 @@ export default function CheckoutPage() {
   const formasPagoQuery = useFormasPago();
   const crearDireccionMutation = useCrearDireccion();
   const crearPedidoMutation = useCrearPedido();
+  const setPagoPendiente = usePagoStore((state) => state.setPagoPendiente);
+  const setEstadoPago = usePagoStore((state) => state.setEstadoPago);
 
   const [direccionId, setDireccionId] = useState<number | "">("");
   const [formaPagoCodigo, setFormaPagoCodigo] = useState("EFECTIVO");
@@ -73,19 +76,23 @@ export default function CheckoutPage() {
       });
 
       if (formaPagoCodigo === "MERCADOPAGO") {
+        setPagoPendiente(pedido.id);
         const pago = await crearPreferenciaPago(pedido.id);
         const checkoutUrl = pago.init_point ?? pago.sandbox_init_point;
         if (checkoutUrl) {
+          setEstadoPago("redirecting", "Redirigiendo a MercadoPago Checkout Pro.");
           clearCart();
           window.location.href = checkoutUrl;
           return;
         }
+        setEstadoPago("error", "MercadoPago no devolvió un link de pago.");
         throw new Error("MercadoPago creó la preferencia, pero no devolvió un link de pago.");
       }
 
       clearCart();
       navigate(`/store/pedidos?creado=${pedido.id}`);
     } catch (error) {
+      setEstadoPago("error", error instanceof Error ? error.message : "No se pudo realizar el pedido.");
       setFormError(error instanceof Error ? error.message : "No se pudo realizar el pedido.");
     }
   }

@@ -410,3 +410,24 @@ def confirmar_pago(
         pedido_id=pedido_id,
         pedido_estado=pedido.estado_codigo,
     )
+
+
+def obtener_pago_por_pedido(
+    uow: SQLModelUnitOfWork,
+    usuario: Usuario,
+    pedido_id: int,
+) -> PagoEstadoResponse:
+    pedido = uow.pedidos.get_active_with_details(pedido_id)
+    if not pedido:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pedido no encontrado")
+    _validar_visibilidad_pedido(pedido, usuario)
+
+    pago = _ultimo_pago_por_pedido(uow, pedido_id)
+    if pago is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pago no encontrado para el pedido indicado.")
+
+    return PagoEstadoResponse(
+        estado=pago.estado,
+        pedido_id=pedido_id,
+        pedido_estado=pedido.estado_codigo,
+    )

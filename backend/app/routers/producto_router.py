@@ -5,8 +5,11 @@ from fastapi import APIRouter, Depends, Path, Query, Response, status
 from app.core.auth_dependencies import require_roles
 from app.models.usuario import Usuario
 from app.schemas.producto_schema import (
+    ImagenProductoUpdate,
     ProductoCreate,
     ProductoDisponibilidadUpdate,
+    ProductoIngredientePayload,
+    ProductoIngredienteRead,
     ProductoReadDetail,
     ProductoStockUpdate,
     ProductoUpdate,
@@ -40,6 +43,46 @@ def listar_productos(
         page=page,
         size=size,
     )
+
+
+@router.get(
+    "/{producto_id}/ingredientes",
+    response_model=list[ProductoIngredienteRead],
+    status_code=status.HTTP_200_OK,
+)
+def listar_ingredientes_producto(
+    uow: UowDep,
+    producto_id: int = Path(..., ge=1),
+) -> list[ProductoIngredienteRead]:
+    return producto_service.listar_ingredientes_producto(uow, producto_id)
+
+
+@router.post(
+    "/{producto_id}/ingredientes",
+    response_model=ProductoIngredienteRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def asociar_ingrediente_producto(
+    payload: ProductoIngredientePayload,
+    uow: UowDep,
+    _admin: AdminDep,
+    producto_id: int = Path(..., ge=1),
+) -> ProductoIngredienteRead:
+    return producto_service.asociar_ingrediente_producto(uow, producto_id, payload)
+
+
+@router.patch(
+    "/{producto_id}/imagenes",
+    response_model=ProductoReadDetail,
+    status_code=status.HTTP_200_OK,
+)
+def actualizar_imagenes_producto(
+    payload: ImagenProductoUpdate,
+    uow: UowDep,
+    _admin: AdminDep,
+    producto_id: int = Path(..., ge=1),
+) -> ProductoReadDetail:
+    return producto_service.actualizar_imagenes(uow, producto_id, payload.imagenes_url)
 
 
 @router.get("/{producto_id}", response_model=ProductoReadDetail, status_code=status.HTTP_200_OK)

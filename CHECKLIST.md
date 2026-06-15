@@ -65,3 +65,26 @@
 - [ ] `npm install`
 - [ ] `npm run build`
 - [ ] Demo completa con Cloudinary + MercadoPago + Ngrok + WebSocket.
+
+## Corrección final contra TPI v6
+
+- [x] Se agregó `.gitignore` raíz para evitar subir `.env`, `.venv`, `node_modules`, `dist`, cachés y archivos compilados.
+- [x] Se mejoró el dashboard administrativo con KPIs, tendencia semanal, pedidos por estado, ventas por forma de pago, top productos y alertas de stock bajo.
+- [x] Se amplió el endpoint `GET /api/v1/admin/dashboard` para alimentar gráficos comerciales, operativos, pagos y stock.
+- [x] Se agregó alias TPI `GET /api/v1/productos/{id}/ingredientes`.
+- [x] Se agregó alias TPI `POST /api/v1/productos/{id}/ingredientes`.
+- [x] Se agregó alias TPI `PATCH /api/v1/productos/{id}/imagenes`.
+- [x] Se agregó alias TPI `GET /api/v1/pagos/{pedido_id}`.
+- [x] Se agregó alias TPI `DELETE /api/v1/pedidos/{id}` para cancelación propia.
+
+## Corrección ampliada final contra TPI v6
+
+- [x] Módulo estadísticas ADMIN con 5 endpoints TPI: resumen, ventas, productos-top, pedidos-por-estado e ingresos.
+- [x] Dashboard frontend con Recharts: AreaChart, BarChart y PieChart.
+- [x] `recharts` agregado a `package.json` y `package-lock.json`.
+- [x] Eventos WebSocket normalizados al contrato TPI: `estado_nuevo`, `estado_anterior`, `motivo` y `timestamp`.
+- [x] Invalidación TanStack Query corregida para refrescar dashboard tras eventos WS.
+- [x] Stores Zustand separados: carrito, sesión, pagos, WebSocket y UI.
+- [x] `pytest.ini` ajustado para evitar warning de pytest-asyncio.
+- [x] `npm run build` validado correctamente.
+- [x] `pytest -q` validado correctamente: 56 tests passing.

@@ -122,6 +122,15 @@ async def confirm_payment(
     return result
 
 
+@router.get("/{pedido_id}", response_model=PagoEstadoResponse)
+def obtener_pago_por_pedido(
+    pedido_id: int,
+    uow: UowDep,
+    usuario: CurrentUserDep,
+):
+    return pago_service.obtener_pago_por_pedido(uow, usuario, pedido_id)
+
+
 @router.get("/redirect/{pedido_id}/{status}")
 async def redirect_after_pago(pedido_id: int, status: str, request: Request):
     settings = get_settings()

@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import * as authService from "../services/authService";
 import type { AuthResponse, LoginPayload, Usuario } from "../types/auth";
+import { useSessionStore } from "../stores/sessionStore";
 
 interface AuthContextValue {
   usuario: Usuario | null;
@@ -37,13 +38,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const setSessionSnapshot = useSessionStore((state) => state.setSessionSnapshot);
+  const clearSessionSnapshot = useSessionStore((state) => state.clearSessionSnapshot);
 
   const refreshMe = useCallback(async () => {
     const response = await authService.getMe();
     const auth = normalizeAuth(response);
     setUsuario(auth.usuario);
     setRoles(auth.roles);
-  }, []);
+    setSessionSnapshot(auth.roles);
+  }, [setSessionSnapshot]);
 
   useEffect(() => {
     let mounted = true;
@@ -55,11 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const auth = normalizeAuth(response);
         setUsuario(auth.usuario);
         setRoles(auth.roles);
+        setSessionSnapshot(auth.roles);
       })
       .catch(() => {
         if (!mounted) return;
         setUsuario(null);
         setRoles([]);
+        clearSessionSnapshot();
       })
       .finally(() => {
         if (mounted) setIsLoading(false);
@@ -68,22 +74,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [clearSessionSnapshot, setSessionSnapshot]);
 
   const login = useCallback(async (payload: LoginPayload) => {
     const response = await authService.login(payload);
     const auth = normalizeAuth(response);
     setUsuario(auth.usuario);
     setRoles(auth.roles);
+    setSessionSnapshot(auth.roles);
     await queryClient.invalidateQueries();
-  }, [queryClient]);
+  }, [queryClient, setSessionSnapshot]);
 
   const logout = useCallback(async () => {
     await authService.logout();
     setUsuario(null);
     setRoles([]);
+    clearSessionSnapshot();
     queryClient.clear();
-  }, [queryClient]);
+  }, [clearSessionSnapshot, queryClient]);
 
   const hasRole = useCallback(
     (...allowedRoles: string[]) => roles.some((rol) => allowedRoles.includes(rol)),

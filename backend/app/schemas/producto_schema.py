@@ -46,6 +46,10 @@ class ProductoUpdate(SQLModel):
     ingredientes_configurados: Optional[list[ProductoIngredientePayload]] = None
 
 
+class ImagenProductoUpdate(SQLModel):
+    imagenes_url: list[str] = Field(default_factory=list)
+
+
 class ProductoDisponibilidadUpdate(SQLModel):
     disponible: bool
 
