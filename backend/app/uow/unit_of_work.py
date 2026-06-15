@@ -36,7 +36,11 @@ class SQLModelUnitOfWork:
     unidades_medida: UnidadMedidaRepository
 
     def __enter__(self) -> "SQLModelUnitOfWork":
-        self.session = Session(engine)
+        try:
+            self.session = Session(engine, expire_on_commit=False)
+        except TypeError:
+            # Compatibilidad con dobles de prueba que imitan Session sin kwargs.
+            self.session = Session(engine)
         self.categorias = CategoriaRepository(self.session)
         self.ingredientes = IngredienteRepository(self.session)
         self.productos = ProductoRepository(self.session)

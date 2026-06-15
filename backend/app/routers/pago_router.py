@@ -35,8 +35,10 @@ def _build_payment_event(uow: SQLModelUnitOfWork, result: dict) -> dict | None:
         "pedido_id": int(pedido_id),
         "usuario_id": pedido.usuario_id if pedido else None,
         "new_state": result.get("pedido_estado") or (pedido.estado_codigo if pedido else None),
+        "old_state": result.get("pedido_estado_anterior"),
         "payment_state": result.get("estado"),
         "changed_by": None,
+        "motivo": result.get("motivo"),
     }
 
 
@@ -60,16 +62,12 @@ def crear_pago_alias_tpi(
 
 
 @router.post("/webhook")
-async def webhook(
-    request: Request,
-    uow: UowDep,
-):
+async def webhook(request: Request):
     """Webhook de MercadoPago.
 
-    No requiere usuario autenticado porque MercadoPago lo llama directamente.
-    El webhook actualiza el pago consultando la API oficial de MercadoPago.
-    Si el pago queda aprobado, confirma el pedido y descuenta stock dentro de
-    la misma transacción. Los eventos WebSocket se emiten después del commit.
+    MercadoPago llama este endpoint de forma pública. El procesamiento del pago,
+    la confirmación del pedido y el descuento de stock se ejecutan dentro del UoW.
+    El WebSocket se emite únicamente cuando el UoW ya hizo commit exitoso.
     """
 
     try:
@@ -84,11 +82,13 @@ async def webhook(
             logger.warning("Firma de webhook MercadoPago inválida")
             return {"status": "error", "reason": "Invalid webhook signature"}
 
-        result = pago_service.procesar_webhook(uow, data, query_params=query_params)
-        evento = _build_payment_event(uow, result) if result.get("status") == "processed" else None
+        evento = None
+        with SQLModelUnitOfWork() as uow:
+            result = pago_service.procesar_webhook(uow, data, query_params=query_params)
+            evento = _build_payment_event(uow, result) if result.get("status") == "processed" else None
 
+        # El commit ya fue ejecutado por el UoW. El broadcast queda post-commit.
         if evento:
-            uow.session.commit()
             await manager.broadcast_order_event("ORDER_PAYMENT_UPDATED", evento)
             if evento["new_state"] == "CONFIRMADO":
                 await manager.broadcast_order_event("ORDER_STATE_CHANGED", evento)
@@ -102,19 +102,24 @@ async def webhook(
 @router.post("/confirm", response_model=PagoEstadoResponse)
 async def confirm_payment(
     payload: ConfirmarPagoRequest,
-    uow: UowDep,
     usuario: CurrentUserDep,
 ):
-    result = pago_service.confirmar_pago(uow, usuario, payload.pedido_id, payload.payment_id)
+    with SQLModelUnitOfWork() as uow:
+        pedido_actual = uow.pedidos.get_active_with_details(payload.pedido_id)
+        estado_anterior = pedido_actual.estado_codigo if pedido_actual else None
+        result = pago_service.confirmar_pago(uow, usuario, payload.pedido_id, payload.payment_id)
 
-    evento = {
-        "pedido_id": result.pedido_id,
-        "usuario_id": usuario.id,
-        "new_state": result.pedido_estado,
-        "payment_state": result.estado,
-        "changed_by": usuario.id,
-    }
-    uow.session.commit()
+        evento = {
+            "pedido_id": result.pedido_id,
+            "usuario_id": usuario.id,
+            "new_state": result.pedido_estado,
+            "old_state": estado_anterior,
+            "payment_state": result.estado,
+            "changed_by": usuario.id,
+            "motivo": "Pago confirmado por retorno de MercadoPago.",
+        }
+
+    # El commit ya fue ejecutado por el UoW. El broadcast queda post-commit.
     await manager.broadcast_order_event("ORDER_PAYMENT_UPDATED", evento)
     if result.pedido_estado == "CONFIRMADO":
         await manager.broadcast_order_event("ORDER_STATE_CHANGED", evento)

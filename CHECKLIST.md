@@ -88,3 +88,10 @@
 - [x] `pytest.ini` ajustado para evitar warning de pytest-asyncio.
 - [x] `npm run build` validado correctamente.
 - [x] `pytest -q` validado correctamente: 56 tests passing.
+
+
+## Correcciones finales de calidad
+
+- Unit of Work: las operaciones que notifican por WebSocket ahora abren un bloque `with SQLModelUnitOfWork()`. El commit/rollback queda centralizado en el UoW y el broadcast se ejecuta recién después del commit exitoso.
+- MercadoPago: la preferencia de pago se crea enviando la `idempotency_key` como header `x-idempotency-key` mediante `RequestOptions` del SDK, y esa misma clave queda guardada en la tabla `Pago`.
+- Frontend: `package-lock.json` queda sincronizado con `package.json`, incluyendo `recharts` para el dashboard administrativo.

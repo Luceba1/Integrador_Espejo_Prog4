@@ -55,18 +55,19 @@ def listar_pedidos(
 @router.post("/", response_model=PedidoRead, status_code=status.HTTP_201_CREATED)
 async def crear_pedido(
     payload: PedidoCreate,
-    uow: UowDep,
     usuario: CurrentUserDep,
 ) -> PedidoRead:
-    pedido = pedido_service.crear_desde_carrito(uow, usuario, payload)
-    evento = {
-        "pedido_id": pedido.id,
-        "usuario_id": pedido.usuario_id,
-        "new_state": pedido.estado_codigo,
-        "changed_by": usuario.id,
-    }
-    # El TPI pide emitir WebSocket después del commit.
-    uow.session.commit()
+    with SQLModelUnitOfWork() as uow:
+        pedido = pedido_service.crear_desde_carrito(uow, usuario, payload)
+        evento = {
+            "pedido_id": pedido.id,
+            "usuario_id": pedido.usuario_id,
+            "new_state": pedido.estado_codigo,
+            "old_state": None,
+            "changed_by": usuario.id,
+        }
+
+    # El commit ya fue ejecutado por el UoW. El broadcast queda post-commit.
     await manager.broadcast_order_event("ORDER_CREATED", evento)
     return pedido
 
@@ -83,80 +84,87 @@ def obtener_pedido(
 @router.patch("/{pedido_id}/estado", response_model=PedidoRead, status_code=status.HTTP_200_OK)
 async def avanzar_estado_pedido(
     payload: PedidoEstadoUpdate,
-    uow: UowDep,
     usuario: AdminPedidosDep,
     pedido_id: int = Path(..., ge=1),
 ) -> PedidoRead:
-    pedido = pedido_service.avanzar_estado(
-        uow,
-        pedido_id=pedido_id,
-        nuevo_estado_codigo=payload.estado_codigo,
-        usuario=usuario,
-        motivo=payload.motivo,
-        recuperar_stock=payload.recuperar_stock,
-    )
-    # El TPI pide emitir WebSocket después del commit.
-    uow.session.commit()
-    await manager.broadcast_order_event(
-        "ORDER_STATE_CHANGED",
-        {
+    with SQLModelUnitOfWork() as uow:
+        pedido_actual = pedido_service.obtener_por_id(uow, pedido_id, usuario)
+        estado_anterior = pedido_actual.estado_codigo
+        pedido = pedido_service.avanzar_estado(
+            uow,
+            pedido_id=pedido_id,
+            nuevo_estado_codigo=payload.estado_codigo,
+            usuario=usuario,
+            motivo=payload.motivo,
+            recuperar_stock=payload.recuperar_stock,
+        )
+        evento = {
             "pedido_id": pedido.id,
             "usuario_id": pedido.usuario_id,
             "new_state": pedido.estado_codigo,
+            "old_state": estado_anterior,
             "changed_by": usuario.id,
-        },
-    )
+            "motivo": payload.motivo,
+        }
+
+    # El commit ya fue ejecutado por el UoW. El broadcast queda post-commit.
+    await manager.broadcast_order_event("ORDER_STATE_CHANGED", evento)
     return pedido
 
 
 @router.patch("/{pedido_id}/cancelar", response_model=PedidoRead, status_code=status.HTTP_200_OK)
 async def cancelar_pedido_propio(
     payload: PedidoCancelacion,
-    uow: UowDep,
     usuario: CurrentUserDep,
     pedido_id: int = Path(..., ge=1),
 ) -> PedidoRead:
-    pedido = pedido_service.cancelar_propio(
-        uow,
-        pedido_id=pedido_id,
-        usuario=usuario,
-        motivo=payload.motivo,
-    )
-    # El TPI pide emitir WebSocket después del commit.
-    uow.session.commit()
-    await manager.broadcast_order_event(
-        "ORDER_STATE_CHANGED",
-        {
+    with SQLModelUnitOfWork() as uow:
+        pedido_actual = pedido_service.obtener_por_id(uow, pedido_id, usuario)
+        estado_anterior = pedido_actual.estado_codigo
+        pedido = pedido_service.cancelar_propio(
+            uow,
+            pedido_id=pedido_id,
+            usuario=usuario,
+            motivo=payload.motivo,
+        )
+        evento = {
             "pedido_id": pedido.id,
             "usuario_id": pedido.usuario_id,
             "new_state": pedido.estado_codigo,
+            "old_state": estado_anterior,
             "changed_by": usuario.id,
-        },
-    )
+            "motivo": payload.motivo,
+        }
+
+    # El commit ya fue ejecutado por el UoW. El broadcast queda post-commit.
+    await manager.broadcast_order_event("ORDER_STATE_CHANGED", evento)
     return pedido
 
 
 @router.delete("/{pedido_id}", response_model=PedidoRead, status_code=status.HTTP_200_OK)
 async def cancelar_pedido_alias_tpi(
-    uow: UowDep,
     usuario: CurrentUserDep,
     pedido_id: int = Path(..., ge=1),
     motivo: str = Query(default="Cancelación solicitada por el cliente.", min_length=3, max_length=255),
 ) -> PedidoRead:
-    pedido = pedido_service.cancelar_propio(
-        uow,
-        pedido_id=pedido_id,
-        usuario=usuario,
-        motivo=motivo,
-    )
-    uow.session.commit()
-    await manager.broadcast_order_event(
-        "ORDER_STATE_CHANGED",
-        {
+    with SQLModelUnitOfWork() as uow:
+        pedido_actual = pedido_service.obtener_por_id(uow, pedido_id, usuario)
+        estado_anterior = pedido_actual.estado_codigo
+        pedido = pedido_service.cancelar_propio(
+            uow,
+            pedido_id=pedido_id,
+            usuario=usuario,
+            motivo=motivo,
+        )
+        evento = {
             "pedido_id": pedido.id,
             "usuario_id": pedido.usuario_id,
             "new_state": pedido.estado_codigo,
+            "old_state": estado_anterior,
             "changed_by": usuario.id,
-        },
-    )
+            "motivo": motivo,
+        }
+
+    # El commit ya fue ejecutado por el UoW. El broadcast queda post-commit.
+    await manager.broadcast_order_event("ORDER_STATE_CHANGED", evento)
     return pedido

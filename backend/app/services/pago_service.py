@@ -66,7 +66,13 @@ def _validar_visibilidad_pedido(pedido, usuario: Usuario) -> None:
         )
 
 
-def _crear_preferencia_mp(monto: float, titulo: str, pedido_id: int, back_urls: dict) -> dict:
+def _crear_preferencia_mp(
+    monto: float,
+    titulo: str,
+    pedido_id: int,
+    back_urls: dict,
+    idempotency_key: str,
+) -> dict:
     settings = get_settings()
     access_token = settings.MP_ACCESS_TOKEN
     if not access_token:
@@ -74,6 +80,8 @@ def _crear_preferencia_mp(monto: float, titulo: str, pedido_id: int, back_urls: 
 
     try:
         import mercadopago
+
+        from mercadopago.config import RequestOptions
 
         sdk = mercadopago.SDK(access_token)
         public_base_url = settings.NGROK_URL or settings.VITE_API_URL or "http://localhost:8000"
@@ -95,7 +103,11 @@ def _crear_preferencia_mp(monto: float, titulo: str, pedido_id: int, back_urls: 
             "auto_return": "approved",
         }
 
-        result = sdk.preference().create(preference_data)
+        request_options = RequestOptions(
+            access_token=access_token,
+            custom_headers={"x-idempotency-key": idempotency_key},
+        )
+        result = sdk.preference().create(preference_data, request_options=request_options)
 
         if result.get("status") not in (200, 201):
             logger.error("Error creando preferencia MP: %s", result)
@@ -125,6 +137,8 @@ def _consultar_pago_mp(payment_id: int) -> dict:
 
     try:
         import mercadopago
+
+        from mercadopago.config import RequestOptions
 
         sdk = mercadopago.SDK(access_token)
         result = sdk.payment().get(payment_id)
@@ -232,12 +246,15 @@ def crear_pago(uow: SQLModelUnitOfWork, usuario: Usuario, pedido_id: int) -> Pag
         "pending": f"{backend_url}/api/v1/pagos/redirect/{pedido_id}/pending",
     }
 
+    idempotency_key = str(uuid.uuid4())
+
     try:
         mp_data = _crear_preferencia_mp(
             monto=float(pedido.total),
             titulo=f"Pedido #{pedido_id} - Food Store",
             pedido_id=pedido_id,
             back_urls=back_urls,
+            idempotency_key=idempotency_key,
         )
     except RuntimeError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -250,7 +267,7 @@ def crear_pago(uow: SQLModelUnitOfWork, usuario: Usuario, pedido_id: int) -> Pag
         mp_init_point=mp_data.get("init_point") or mp_data.get("sandbox_init_point"),
         transaction_amount=pedido.total,
         external_reference=str(pedido_id),
-        idempotency_key=str(uuid.uuid4()),
+        idempotency_key=idempotency_key,
     )
     uow.session.add(pago)
     uow.session.flush()
@@ -345,6 +362,9 @@ def procesar_webhook(uow: SQLModelUnitOfWork, data: dict, query_params: Optional
                 "pedido_estado": pedido.estado_codigo if pedido else None,
             }
 
+        pedido_antes = uow.pedidos.get_active_with_details(pago.pedido_id)
+        pedido_estado_anterior = pedido_antes.estado_codigo if pedido_antes else None
+
         _actualizar_pago_desde_mp(pago, int(pago_mp_id), mp_info, nuevo_estado)
         uow.session.add(pago)
 
@@ -358,7 +378,9 @@ def procesar_webhook(uow: SQLModelUnitOfWork, data: dict, query_params: Optional
             "estado_anterior": estado_anterior,
             "estado": nuevo_estado,
             "pedido_id": pago.pedido_id,
+            "pedido_estado_anterior": pedido_estado_anterior,
             "pedido_estado": pedido.estado_codigo if pedido else None,
+            "motivo": "Pago aprobado por MercadoPago." if nuevo_estado == "aprobado" else None,
         }
 
     except Exception as e:
