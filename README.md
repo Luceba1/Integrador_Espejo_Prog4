@@ -757,30 +757,6 @@ npm run build
 
 ---
 
-# Notas para entrega
-
-No subir archivos sensibles o generados:
-
-- `.env`
-- `.venv`
-- `node_modules`
-- `dist`
-- `__pycache__`
-- archivos `.pyc`
-- `.pytest_cache`
-
-Sí subir:
-
-- `.env.example`
-- `requirements.txt`
-- `package.json`
-- `package-lock.json`
-- `README.md`
-- código fuente
-- tests
-
----
-
 # Comandos rápidos
 
 Backend:
