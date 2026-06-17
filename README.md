@@ -32,7 +32,7 @@ https://github.com/Luceba1/Integrador_Espejo_Prog4.git
 |---|---|
 | Video Parcial 1 | https://www.youtube.com/watch?v=UBQqctKv3ps |
 | Video Parcial 2 | https://www.youtube.com/watch?v=RBDYG3Y-Fgo |
-| Video Final TPI | https://youtu.be/-stOkeraqj0?si=6VdiNpAm5XW0jA5v |
+| Video Final TPI | https://www.youtube.com/watch?v=QiLtJpygd-g |
 
 ---
 
