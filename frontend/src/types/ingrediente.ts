@@ -6,6 +6,9 @@ export interface Ingrediente {
   descripcion?: string | null;
   es_alergeno: boolean;
   stock_cantidad: number;
+  precio_costo_total: number;
+  precio_costo_unitario?: number;
+  precio_por_unidad?: number;
   unidad_medida_id?: number | null;
   unidad_medida?: UnidadMedida | null;
   activo?: boolean;
@@ -17,5 +20,6 @@ export interface IngredientePayload {
   descripcion?: string | null;
   es_alergeno?: boolean;
   stock_cantidad?: number;
+  precio_costo_total?: number;
   unidad_medida_id?: number | null;
 }

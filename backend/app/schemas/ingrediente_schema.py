@@ -13,6 +13,7 @@ class IngredienteCreate(SQLModel):
     descripcion: Optional[str] = Field(default=None, max_length=255)
     es_alergeno: bool = Field(default=False)
     stock_cantidad: Decimal = Field(default=Decimal("0.000"), max_digits=12, decimal_places=3, ge=0)
+    precio_costo_total: Decimal = Field(default=Decimal("0.00"), max_digits=12, decimal_places=2, ge=0)
     unidad_medida_id: Optional[int] = Field(default=None, ge=1)
 
 
@@ -21,6 +22,7 @@ class IngredienteUpdate(SQLModel):
     descripcion: Optional[str] = Field(default=None, max_length=255)
     es_alergeno: Optional[bool] = None
     stock_cantidad: Optional[Decimal] = Field(default=None, max_digits=12, decimal_places=3, ge=0)
+    precio_costo_total: Optional[Decimal] = Field(default=None, max_digits=12, decimal_places=2, ge=0)
     unidad_medida_id: Optional[int] = Field(default=None, ge=1)
 
 
@@ -32,6 +34,9 @@ class IngredienteRead(SQLModel):
     descripcion: Optional[str] = None
     es_alergeno: bool
     stock_cantidad: Decimal
+    precio_costo_total: Decimal
+    precio_costo_unitario: Decimal = Decimal("0.00")
+    precio_por_unidad: Decimal = Decimal("0.00")
     unidad_medida_id: Optional[int] = None
     unidad_medida: Optional[UnidadMedidaRead] = None
     activo: bool
@@ -47,6 +52,9 @@ class IngredienteSimpleRead(SQLModel):
     nombre: str
     es_alergeno: bool
     stock_cantidad: Decimal
+    precio_costo_total: Decimal
+    precio_costo_unitario: Decimal = Decimal("0.00")
+    precio_por_unidad: Decimal = Decimal("0.00")
     unidad_medida_id: Optional[int] = None
     unidad_medida: Optional[UnidadMedidaRead] = None
     activo: bool

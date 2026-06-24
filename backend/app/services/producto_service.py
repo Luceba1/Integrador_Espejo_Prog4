@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from decimal import Decimal, ROUND_FLOOR
+from decimal import Decimal, ROUND_FLOOR, ROUND_HALF_UP
 from types import SimpleNamespace
 
 from fastapi import HTTPException, status
@@ -13,6 +13,34 @@ from app.models.producto import Producto
 from app.models.producto_ingrediente import ProductoIngrediente
 from app.schemas.producto_schema import ProductoCreate, ProductoIngredientePayload, ProductoUpdate
 from app.uow.unit_of_work import SQLModelUnitOfWork
+
+
+def _precio_por_unidad_ingrediente(ingrediente: Ingrediente) -> Decimal:
+    unitario = Decimal(getattr(ingrediente, "precio_costo_unitario", 0) or 0)
+    if unitario > 0:
+        return unitario
+    stock = Decimal(ingrediente.stock_cantidad or 0)
+    precio_total = Decimal(getattr(ingrediente, "precio_costo_total", 0) or 0)
+    if stock <= 0 or precio_total <= 0:
+        return Decimal("0.00")
+    return precio_total / stock
+
+
+def _costo_config_ingrediente(ingrediente: Ingrediente | None, cantidad: Decimal) -> Decimal:
+    if ingrediente is None or cantidad <= 0:
+        return Decimal("0.00")
+    return _precio_por_unidad_ingrediente(ingrediente) * Decimal(cantidad)
+
+
+def _calcular_costos_producto(uow: SQLModelUnitOfWork, producto_id: int, margen_porcentaje: Decimal) -> tuple[Decimal, Decimal]:
+    costo = Decimal("0.00")
+    for config in uow.productos.list_ingrediente_config(producto_id):
+        ingrediente = uow.ingredientes.get_active_by_id(config.ingrediente_id)
+        costo += _costo_config_ingrediente(ingrediente, Decimal(config.cantidad or 0))
+    costo = costo.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    margen = Decimal(margen_porcentaje or 0)
+    precio_sugerido = (costo * (Decimal("1") + (margen / Decimal("100")))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return costo, precio_sugerido
 
 
 def _integrity_error(detail: str) -> HTTPException:
@@ -124,13 +152,20 @@ def _inyectar_info_calculada(uow: SQLModelUnitOfWork, producto: Producto) -> Pro
         configuraciones.append(
             SimpleNamespace(
                 ingrediente_id=config.ingrediente_id,
-                ingrediente=ingrediente,
+                ingrediente=(SimpleNamespace(
+                    **ingrediente.model_dump(),
+                    unidad_medida=ingrediente.unidad_medida,
+                    precio_por_unidad=_precio_por_unidad_ingrediente(ingrediente).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+                ) if ingrediente else None),
                 cantidad=config.cantidad,
                 unidad_medida_id=config.unidad_medida_id,
                 unidad_medida=unidad,
                 es_removible=config.es_removible,
             )
         )
+    costo_ingredientes, precio_sugerido = _calcular_costos_producto(uow, producto.id, Decimal(producto.margen_ganancia_porcentaje or 0))
+    object.__setattr__(producto, "costo_ingredientes", costo_ingredientes)
+    object.__setattr__(producto, "precio_sugerido", precio_sugerido)
     object.__setattr__(producto, "ingredientes_configurados", configuraciones)
     return producto
 
@@ -174,6 +209,7 @@ def crear(uow: SQLModelUnitOfWork, payload: ProductoCreate) -> Producto:
         nombre=payload.nombre,
         descripcion=payload.descripcion,
         precio_base=payload.precio_base,
+        margen_ganancia_porcentaje=payload.margen_ganancia_porcentaje,
         unidad_venta_id=_validar_unidad_venta(uow, payload.unidad_venta_id),
         imagenes_url=payload.imagenes_url,
         stock_cantidad=0,
@@ -200,6 +236,8 @@ def actualizar(uow: SQLModelUnitOfWork, producto_id: int, payload: ProductoUpdat
         producto.descripcion = cambios["descripcion"]
     if "precio_base" in cambios:
         producto.precio_base = cambios["precio_base"]
+    if "margen_ganancia_porcentaje" in cambios:
+        producto.margen_ganancia_porcentaje = cambios["margen_ganancia_porcentaje"]
     if "unidad_venta_id" in cambios:
         producto.unidad_venta_id = _validar_unidad_venta(uow, cambios["unidad_venta_id"])
     if "imagenes_url" in cambios:

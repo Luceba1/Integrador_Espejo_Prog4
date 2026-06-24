@@ -1,4 +1,4 @@
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlmodel import Session, select
 
 from app.models.categoria import Categoria
@@ -19,6 +19,7 @@ class CategoriaRepository(BaseRepository[Categoria]):
         incluir_eliminadas: bool = False,
         page: int = 1,
         size: int = 50,
+        search: str | None = None,
     ) -> list[Categoria]:
         statement = select(Categoria)
 
@@ -32,6 +33,15 @@ class CategoriaRepository(BaseRepository[Categoria]):
             statement = statement.where(Categoria.parent_id == parent_id)
         elif solo_raiz:
             statement = statement.where(Categoria.parent_id.is_(None))  # type: ignore[attr-defined]
+
+        if search:
+            pattern = f"%{search}%"
+            statement = statement.where(
+                or_(
+                    Categoria.nombre.ilike(pattern),
+                    Categoria.descripcion.ilike(pattern),
+                )
+            )
 
         statement = statement.order_by(Categoria.parent_id, Categoria.nombre).offset((page - 1) * size).limit(size)
         return list(self.session.exec(statement).all())

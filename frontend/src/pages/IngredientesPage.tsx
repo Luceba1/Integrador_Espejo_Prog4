@@ -17,18 +17,31 @@ import type { Ingrediente, IngredientePayload } from "../types/ingrediente";
 
 const PAGE_SIZE = 10;
 
+type AlergenoFilter = "todos" | "si" | "no";
+
 export default function IngredientesPage() {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<Ingrediente | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [incluirEliminados, setIncluirEliminados] = useState(false);
+  const [search, setSearch] = useState("");
+  const [currentSearch, setCurrentSearch] = useState("");
+  const [alergenoFilter, setAlergenoFilter] = useState<AlergenoFilter>("todos");
+  const [unidadFilter, setUnidadFilter] = useState("");
   const [exportando, setExportando] = useState(false);
 
   const { hasRole } = useAuth();
   const canManage = hasRole("ADMIN");
 
-  const ingredientesQuery = useIngredientes({ page, size: PAGE_SIZE, incluir_eliminados: incluirEliminados });
+  const ingredientesQuery = useIngredientes({
+    page,
+    size: PAGE_SIZE,
+    incluir_eliminados: incluirEliminados,
+    search: currentSearch,
+    es_alergeno: alergenoFilter === "todos" ? undefined : alergenoFilter === "si",
+    unidad_medida_id: unidadFilter ? Number(unidadFilter) : undefined,
+  });
   const unidadesQuery = useUnidadesMedida();
   const crearMutation = useCrearIngrediente();
   const actualizarMutation = useActualizarIngrediente();
@@ -36,6 +49,21 @@ export default function IngredientesPage() {
   const activarMutation = useActivarIngrediente();
   const deleting = eliminarMutation.isPending;
   const canGoNext = useMemo(() => (ingredientesQuery.data?.length ?? 0) === PAGE_SIZE, [ingredientesQuery.data]);
+
+  function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setCurrentSearch(search);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setCurrentSearch("");
+    setAlergenoFilter("todos");
+    setUnidadFilter("");
+    setIncluirEliminados(false);
+    setPage(1);
+  }
 
   function handleNew() {
     if (!canManage) return;
@@ -90,7 +118,6 @@ export default function IngredientesPage() {
     }
   }
 
-
   async function handleActivate(ingrediente: Ingrediente) {
     if (!canManage) return;
     try {
@@ -114,7 +141,7 @@ export default function IngredientesPage() {
   return (
     <PageContainer
       title="Ingredientes"
-      subtitle="ABM de ingredientes con tabla, acciones y modal tipado en TypeScript."
+      subtitle="ABM de ingredientes con búsqueda, filtros, stock por unidad y marca de alérgenos."
       actions={
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={handleExport} disabled={exportando} className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-60">{exportando ? "Exportando..." : "Exportar Excel"}</button>
@@ -130,7 +157,40 @@ export default function IngredientesPage() {
       }
     >
       <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-        <label className="flex items-center gap-2 text-sm text-slate-300">
+        <form className="grid gap-3 xl:grid-cols-[1fr_180px_220px_auto_auto]" onSubmit={handleSearchSubmit}>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar por nombre o descripción"
+            className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+          />
+          <select
+            value={alergenoFilter}
+            onChange={(event) => { setAlergenoFilter(event.target.value as AlergenoFilter); setPage(1); }}
+            className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none"
+          >
+            <option value="todos">Todos</option>
+            <option value="si">Solo alérgenos</option>
+            <option value="no">Sin alérgenos</option>
+          </select>
+          <select
+            value={unidadFilter}
+            onChange={(event) => { setUnidadFilter(event.target.value); setPage(1); }}
+            className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none"
+          >
+            <option value="">Todas las unidades</option>
+            {(unidadesQuery.data ?? []).map((unidad) => (
+              <option key={unidad.id} value={unidad.id}>{unidad.nombre} ({unidad.simbolo})</option>
+            ))}
+          </select>
+          <button type="submit" disabled={ingredientesQuery.isFetching} className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-slate-100 hover:bg-white/10 disabled:opacity-60">
+            Buscar
+          </button>
+          <button type="button" onClick={clearFilters} className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-slate-100 hover:bg-white/10">
+            Limpiar
+          </button>
+        </form>
+        <label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
           <input type="checkbox" checked={incluirEliminados} onChange={(event) => { setIncluirEliminados(event.target.checked); setPage(1); }} />
           Ver ingredientes eliminados
         </label>

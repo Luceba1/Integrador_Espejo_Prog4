@@ -4,11 +4,12 @@ import {
   createUnidadMedida,
   deleteUnidadMedida,
   getUnidadesMedida,
+  type UnidadMedidaQueryParams,
   updateUnidadMedida,
   activarUnidadMedida,
 } from "../services/unidadMedidaService";
 
-export function useUnidadesMedida(params?: { page?: number; size?: number; incluir_eliminadas?: boolean }) {
+export function useUnidadesMedida(params?: UnidadMedidaQueryParams) {
   return useQuery({
     queryKey: ["unidades-medida", params],
     queryFn: () => getUnidadesMedida(params),

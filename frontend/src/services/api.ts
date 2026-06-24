@@ -69,7 +69,9 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const originalRequest = error.config as (AxiosRequestConfig & { _retry?: boolean }) | undefined;
 
-    if (status === 401 && originalRequest && !originalRequest._retry && originalRequest.url !== "/auth/refresh") {
+    const shouldTryRefresh = originalRequest?.url !== "/auth/login" && originalRequest?.url !== "/auth/register" && originalRequest?.url !== "/auth/refresh";
+
+    if (status === 401 && originalRequest && !originalRequest._retry && shouldTryRefresh) {
       originalRequest._retry = true;
 
       if (isRefreshing) {

@@ -13,7 +13,13 @@ export default function ProductoDetailCard({ producto }: ProductoDetailCardProps
         <p className="mt-4 text-sm text-slate-300">{producto.descripcion || "Este producto no tiene descripción."}</p>
         <div className="mt-6 flex flex-wrap gap-3">
           <span className="inline-flex rounded-full bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-300">
-            Precio: ${Number(producto.precio_base).toFixed(2)}{producto.unidad_venta ? ` / ${producto.unidad_venta.simbolo}` : ""}
+            Precio: ${Number(producto.precio_base).toFixed(2)}
+          </span>
+          <span className="inline-flex rounded-full bg-sky-500/15 px-4 py-2 text-sm font-semibold text-sky-200">
+            Sugerido: ${Number(producto.precio_sugerido ?? 0).toFixed(2)}
+          </span>
+          <span className="inline-flex rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-slate-200">
+            Costo: ${Number(producto.costo_ingredientes ?? 0).toFixed(2)} · Margen: {Number(producto.margen_ganancia_porcentaje ?? 0).toFixed(2)}%
           </span>
           <span className="inline-flex rounded-full bg-sky-500/15 px-4 py-2 text-sm font-semibold text-sky-200">
             Preparables: {producto.stock_cantidad} unidades
@@ -42,7 +48,7 @@ export default function ProductoDetailCard({ producto }: ProductoDetailCardProps
               <li key={config.ingrediente_id} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-slate-200">
                 <p className="font-semibold">{config.ingrediente?.nombre ?? `Ingrediente #${config.ingrediente_id}`}</p>
                 <p className="mt-1 text-xs text-slate-400">
-                  Consume: {config.cantidad}{config.unidad_medida ? ` ${config.unidad_medida.simbolo}` : ""} por unidad
+                  Consume: {config.cantidad}{config.unidad_medida ? ` ${config.unidad_medida.simbolo}` : ""} por unidad · Costo: ${Number((config.ingrediente?.precio_por_unidad ?? 0) * Number(config.cantidad)).toFixed(2)}
                 </p>
               </li>
             ))

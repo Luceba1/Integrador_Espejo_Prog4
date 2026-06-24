@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
@@ -15,8 +16,44 @@ def _integrity_error(detail: str) -> HTTPException:
     )
 
 
-def listar(uow: SQLModelUnitOfWork, incluir_eliminados: bool = False, page: int = 1, size: int = 50) -> list[Ingrediente]:
-    return uow.ingredientes.list_paginated(incluir_eliminados=incluir_eliminados, page=page, size=size)
+def _calcular_precio_unitario(stock_cantidad: Decimal, precio_costo_total: Decimal) -> Decimal:
+    stock = Decimal(stock_cantidad or 0)
+    precio_total = Decimal(precio_costo_total or 0)
+    if stock <= 0 or precio_total <= 0:
+        return Decimal("0.00")
+    return (precio_total / stock).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+
+
+def _precio_por_unidad(ingrediente: Ingrediente) -> Decimal:
+    unitario = Decimal(getattr(ingrediente, "precio_costo_unitario", 0) or 0)
+    if unitario > 0:
+        return unitario.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return _calcular_precio_unitario(ingrediente.stock_cantidad, ingrediente.precio_costo_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _inyectar_precio_calculado(ingrediente: Ingrediente) -> Ingrediente:
+    object.__setattr__(ingrediente, "precio_por_unidad", _precio_por_unidad(ingrediente))
+    return ingrediente
+
+
+def listar(
+    uow: SQLModelUnitOfWork,
+    incluir_eliminados: bool = False,
+    page: int = 1,
+    size: int = 50,
+    search: str | None = None,
+    es_alergeno: bool | None = None,
+    unidad_medida_id: int | None = None,
+) -> list[Ingrediente]:
+    ingredientes = uow.ingredientes.list_paginated(
+        incluir_eliminados=incluir_eliminados,
+        page=page,
+        size=size,
+        search=search,
+        es_alergeno=es_alergeno,
+        unidad_medida_id=unidad_medida_id,
+    )
+    return [_inyectar_precio_calculado(ingrediente) for ingrediente in ingredientes]
 
 
 def obtener_por_id(uow: SQLModelUnitOfWork, ingrediente_id: int, incluir_eliminados: bool = False) -> Ingrediente:
@@ -26,7 +63,7 @@ def obtener_por_id(uow: SQLModelUnitOfWork, ingrediente_id: int, incluir_elimina
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Ingrediente no encontrado.",
         )
-    return ingrediente
+    return _inyectar_precio_calculado(ingrediente)
 
 
 def _validar_unidad_medida(uow: SQLModelUnitOfWork, unidad_medida_id: int | None) -> int | None:
@@ -41,9 +78,10 @@ def _validar_unidad_medida(uow: SQLModelUnitOfWork, unidad_medida_id: int | None
 def crear(uow: SQLModelUnitOfWork, payload: IngredienteCreate) -> Ingrediente:
     data = payload.model_dump()
     data["unidad_medida_id"] = _validar_unidad_medida(uow, data.get("unidad_medida_id"))
+    data["precio_costo_unitario"] = _calcular_precio_unitario(data.get("stock_cantidad"), data.get("precio_costo_total"))
     ingrediente = Ingrediente(**data)
     try:
-        return uow.ingredientes.create(ingrediente)
+        return _inyectar_precio_calculado(uow.ingredientes.create(ingrediente))
     except IntegrityError as exc:
         raise _integrity_error("No se pudo crear el ingrediente.") from exc
 
@@ -62,10 +100,16 @@ def actualizar(
     for campo, valor in cambios.items():
         setattr(ingrediente, campo, valor)
 
+    if "stock_cantidad" in cambios or "precio_costo_total" in cambios:
+        ingrediente.precio_costo_unitario = _calcular_precio_unitario(
+            ingrediente.stock_cantidad,
+            ingrediente.precio_costo_total,
+        )
+
     ingrediente.updated_at = datetime.now(timezone.utc)
 
     try:
-        return uow.ingredientes.update(ingrediente)
+        return _inyectar_precio_calculado(uow.ingredientes.update(ingrediente))
     except IntegrityError as exc:
         raise _integrity_error("No se pudo actualizar el ingrediente.") from exc
 
@@ -88,6 +132,6 @@ def activar(uow: SQLModelUnitOfWork, ingrediente_id: int) -> Ingrediente:
     ingrediente.deleted_at = None
     ingrediente.updated_at = datetime.now(timezone.utc)
     try:
-        return uow.ingredientes.update(ingrediente)
+        return _inyectar_precio_calculado(uow.ingredientes.update(ingrediente))
     except IntegrityError as exc:
         raise _integrity_error("No se pudo activar el ingrediente.") from exc

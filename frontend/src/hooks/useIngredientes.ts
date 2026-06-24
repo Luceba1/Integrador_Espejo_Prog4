@@ -4,11 +4,12 @@ import {
   createIngrediente,
   deleteIngrediente,
   getIngredientes,
+  type IngredienteQueryParams,
   updateIngrediente,
   activarIngrediente,
 } from "../services/ingredienteService";
 
-export function useIngredientes(params?: { page?: number; size?: number; incluir_eliminados?: boolean }) {
+export function useIngredientes(params?: IngredienteQueryParams) {
   return useQuery({
     queryKey: ["ingredientes", params],
     queryFn: () => getIngredientes(params),

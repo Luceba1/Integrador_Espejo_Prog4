@@ -2,8 +2,6 @@ from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import select
-
 from app.core.security import hash_password, verify_password, hash_refresh_token, refresh_token_expiration
 from app.models.refresh_token import RefreshToken
 from app.models.usuario import Usuario
@@ -60,13 +58,28 @@ def registrar_cliente(uow: SQLModelUnitOfWork, payload: UsuarioRegister) -> Usua
 
 
 def autenticar(uow: SQLModelUnitOfWork, payload: LoginRequest) -> Usuario:
-    usuario = uow.usuarios.get_active_by_email(_normalizar_email(str(payload.email)))
-    if usuario is None or not verify_password(payload.password, usuario.password_hash):
+    email = _normalizar_email(str(payload.email))
+    usuario_any_status = uow.usuarios.get_by_email_any_status(email)
+
+    if usuario_any_status is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email o contraseña incorrectos.",
+            detail="No existe un usuario registrado con ese email.",
         )
-    return usuario
+
+    if not usuario_any_status.activo or usuario_any_status.deleted_at is not None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="El usuario está desactivado. Contactá a un administrador.",
+        )
+
+    if not verify_password(payload.password, usuario_any_status.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="La contraseña ingresada es incorrecta.",
+        )
+
+    return usuario_any_status
 
 
 def obtener_usuario_actual(uow: SQLModelUnitOfWork, usuario_id: int) -> Usuario:
@@ -85,14 +98,12 @@ def crear_refresh_token(uow: SQLModelUnitOfWork, usuario_id: int, token: str) ->
         token_hash=hash_refresh_token(token),
         expires_at=refresh_token_expiration(),
     )
-    uow.session.add(refresh)
-    uow.session.flush()
-    return refresh
+    return uow.refresh_tokens.create(refresh)
 
 
 def obtener_usuario_por_refresh_token(uow: SQLModelUnitOfWork, token: str) -> Usuario:
     token_hash = hash_refresh_token(token)
-    refresh = uow.session.exec(select(RefreshToken).where(RefreshToken.token_hash == token_hash)).first()
+    refresh = uow.refresh_tokens.get_by_token_hash(token_hash)
     expires_at = _as_utc(refresh.expires_at) if refresh else None
     revoked_at = _as_utc(refresh.revoked_at) if refresh else None
     now = datetime.now(timezone.utc)
@@ -109,12 +120,11 @@ def revocar_refresh_token(uow: SQLModelUnitOfWork, token: str | None) -> None:
     if not token:
         return
     token_hash = hash_refresh_token(token)
-    refresh = uow.session.exec(select(RefreshToken).where(RefreshToken.token_hash == token_hash)).first()
+    refresh = uow.refresh_tokens.get_by_token_hash(token_hash)
     if refresh is None or refresh.revoked_at is not None:
         return
     refresh.revoked_at = datetime.now(timezone.utc)
-    uow.session.add(refresh)
-    uow.session.flush()
+    uow.refresh_tokens.update(refresh)
 
 
 def rotar_refresh_token(uow: SQLModelUnitOfWork, old_token: str, new_token: str, usuario_id: int) -> None:

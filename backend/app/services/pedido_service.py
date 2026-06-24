@@ -29,6 +29,8 @@ TRANSICIONES_OPERADOR = {
 }
 TRANSICIONES_CLIENTE_CANCELACION = {ESTADO_INICIAL, ESTADO_CONFIRMADO}
 ROLES_GESTION_PEDIDOS = {"ADMIN", "PEDIDOS"}
+TIPO_ENTREGA_RETIRO = "RETIRO"
+TIPO_ENTREGA_ENVIO = "ENVIO"
 
 
 def _tiene_alguno(usuario: Usuario, roles: set[str]) -> bool:
@@ -193,13 +195,39 @@ def crear_desde_carrito(uow: SQLModelUnitOfWork, usuario: Usuario, payload: Pedi
             detail="La forma de pago indicada no existe o no está activa.",
         )
 
-    if payload.direccion_id is not None:
+    tipo_entrega = payload.tipo_entrega.upper().strip()
+    if tipo_entrega not in {TIPO_ENTREGA_RETIRO, TIPO_ENTREGA_ENVIO}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tipo de entrega inválido.")
+
+    if tipo_entrega == TIPO_ENTREGA_ENVIO:
+        if payload.direccion_id is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Para envío a domicilio se requiere una dirección.")
+        if payload.forma_pago_codigo == "EFECTIVO":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Para envío a domicilio no se permite pago en efectivo.")
         direccion = uow.direcciones.get_active_by_id_for_user(payload.direccion_id, usuario.id)
         if direccion is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="La dirección indicada no existe o no pertenece al usuario autenticado.",
             )
+    else:
+        if payload.direccion_id is not None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Para retiro en el lugar no corresponde seleccionar dirección de envío.")
+
+    config_empresa = uow.configuracion_empresa.get_or_create_default()
+    domicilio_retiro_snap = config_empresa.domicilio_retiro if tipo_entrega == TIPO_ENTREGA_RETIRO else None
+    datos_transferencia_snap = None
+    if payload.forma_pago_codigo == "TRANSFERENCIA":
+        datos_transferencia_snap = " | ".join(
+            item for item in [
+                f"Banco: {config_empresa.banco}" if config_empresa.banco else None,
+                f"Titular: {config_empresa.titular}" if config_empresa.titular else None,
+                f"CUIT: {config_empresa.cuit}" if config_empresa.cuit else None,
+                f"CBU/CVU: {config_empresa.cbu}" if config_empresa.cbu else None,
+                f"Alias: {config_empresa.alias}" if config_empresa.alias else None,
+                config_empresa.instrucciones_transferencia,
+            ] if item
+        ) or None
 
     _validar_estado_existente(uow, ESTADO_INICIAL)
 
@@ -237,9 +265,12 @@ def crear_desde_carrito(uow: SQLModelUnitOfWork, usuario: Usuario, payload: Pedi
 
     pedido = Pedido(
         usuario_id=usuario.id,
-        direccion_id=payload.direccion_id,
+        direccion_id=payload.direccion_id if tipo_entrega == TIPO_ENTREGA_ENVIO else None,
         estado_codigo=ESTADO_INICIAL,
         forma_pago_codigo=payload.forma_pago_codigo,
+        tipo_entrega=tipo_entrega,
+        domicilio_retiro_snap=domicilio_retiro_snap,
+        datos_transferencia_snap=datos_transferencia_snap,
         subtotal=subtotal,
         descuento=payload.descuento,
         costo_envio=payload.costo_envio,

@@ -6,10 +6,16 @@ function formatMoney(value: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(value);
 }
 
-export default function CartSummary() {
+type CartSummaryProps = {
+  showCheckoutAction?: boolean;
+  costoEnvio?: number;
+  envioLabel?: string;
+};
+
+export default function CartSummary({ showCheckoutAction = true, costoEnvio = 500, envioLabel = "Envío" }: CartSummaryProps) {
   const { subtotal, totalItems, hasItems } = useCarrito();
-  const costoEnvio = hasItems ? 500 : 0;
-  const total = subtotal + costoEnvio;
+  const costoEnvioCalculado = hasItems ? costoEnvio : 0;
+  const total = subtotal + costoEnvioCalculado;
 
   return (
     <aside className="rounded-3xl border border-white/10 bg-slate-900/70 p-5">
@@ -24,8 +30,8 @@ export default function CartSummary() {
           <span>{formatMoney(subtotal)}</span>
         </div>
         <div className="flex justify-between text-slate-300">
-          <span>Envío demo</span>
-          <span>{formatMoney(costoEnvio)}</span>
+          <span>{envioLabel}</span>
+          <span>{formatMoney(costoEnvioCalculado)}</span>
         </div>
         <div className="border-t border-white/10 pt-3">
           <div className="flex justify-between text-lg font-bold text-emerald-300">
@@ -35,12 +41,14 @@ export default function CartSummary() {
         </div>
       </div>
 
-      <Link
-        to="/store/checkout"
-        className={`mt-5 block rounded-2xl px-4 py-3 text-center font-semibold ${hasItems ? "bg-emerald-500 text-white hover:bg-emerald-400" : "pointer-events-none bg-slate-700 text-slate-400"}`}
-      >
-        Realizar pedido
-      </Link>
+      {showCheckoutAction ? (
+        <Link
+          to="/store/checkout"
+          className={`mt-5 block rounded-2xl px-4 py-3 text-center font-semibold ${hasItems ? "bg-emerald-500 text-white hover:bg-emerald-400" : "pointer-events-none bg-slate-700 text-slate-400"}`}
+        >
+          Realizar pedido
+        </Link>
+      ) : null}
     </aside>
   );
 }

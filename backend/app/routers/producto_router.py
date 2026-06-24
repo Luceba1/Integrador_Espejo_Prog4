@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Query, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Path, Query, Response, status
 
 from app.core.auth_dependencies import require_roles
+from app.core.websocket import manager
 from app.models.usuario import Usuario
 from app.schemas.producto_schema import (
     ImagenProductoUpdate,
@@ -22,6 +23,11 @@ router = APIRouter(prefix="/productos", tags=["Productos"])
 UowDep = Annotated[SQLModelUnitOfWork, Depends(get_uow)]
 AdminDep = Annotated[Usuario, Depends(require_roles("ADMIN"))]
 AdminStockDep = Annotated[Usuario, Depends(require_roles("ADMIN", "STOCK"))]
+
+
+def _avisar_catalogo(background_tasks: BackgroundTasks, event: str, **data: object) -> None:
+    """Programa aviso post-respuesta para que la store refresque sin F5."""
+    background_tasks.add_task(manager.broadcast_catalog_event, event, data)
 
 
 @router.get("/", response_model=list[ProductoReadDetail], status_code=status.HTTP_200_OK)
@@ -66,9 +72,12 @@ def asociar_ingrediente_producto(
     payload: ProductoIngredientePayload,
     uow: UowDep,
     _admin: AdminDep,
+    background_tasks: BackgroundTasks,
     producto_id: int = Path(..., ge=1),
 ) -> ProductoIngredienteRead:
-    return producto_service.asociar_ingrediente_producto(uow, producto_id, payload)
+    resultado = producto_service.asociar_ingrediente_producto(uow, producto_id, payload)
+    _avisar_catalogo(background_tasks, "CATALOG_PRODUCT_UPDATED", producto_id=producto_id)
+    return resultado
 
 
 @router.patch(
@@ -80,9 +89,12 @@ def actualizar_imagenes_producto(
     payload: ImagenProductoUpdate,
     uow: UowDep,
     _admin: AdminDep,
+    background_tasks: BackgroundTasks,
     producto_id: int = Path(..., ge=1),
 ) -> ProductoReadDetail:
-    return producto_service.actualizar_imagenes(uow, producto_id, payload.imagenes_url)
+    producto = producto_service.actualizar_imagenes(uow, producto_id, payload.imagenes_url)
+    _avisar_catalogo(background_tasks, "CATALOG_PRODUCT_UPDATED", producto_id=producto.id)
+    return producto
 
 
 @router.get("/{producto_id}", response_model=ProductoReadDetail, status_code=status.HTTP_200_OK)
@@ -94,8 +106,10 @@ def obtener_producto(
 
 
 @router.post("/", response_model=ProductoReadDetail, status_code=status.HTTP_201_CREATED)
-def crear_producto(payload: ProductoCreate, uow: UowDep, _admin: AdminDep) -> ProductoReadDetail:
-    return producto_service.crear(uow, payload)
+def crear_producto(payload: ProductoCreate, uow: UowDep, _admin: AdminDep, background_tasks: BackgroundTasks) -> ProductoReadDetail:
+    producto = producto_service.crear(uow, payload)
+    _avisar_catalogo(background_tasks, "CATALOG_PRODUCT_CREATED", producto_id=producto.id)
+    return producto
 
 
 @router.put("/{producto_id}", response_model=ProductoReadDetail, status_code=status.HTTP_200_OK)
@@ -103,9 +117,12 @@ def actualizar_producto(
     payload: ProductoUpdate,
     uow: UowDep,
     _admin: AdminDep,
+    background_tasks: BackgroundTasks,
     producto_id: int = Path(..., ge=1),
 ) -> ProductoReadDetail:
-    return producto_service.actualizar(uow, producto_id, payload)
+    producto = producto_service.actualizar(uow, producto_id, payload)
+    _avisar_catalogo(background_tasks, "CATALOG_PRODUCT_UPDATED", producto_id=producto.id)
+    return producto
 
 
 @router.patch(
@@ -117,9 +134,12 @@ def cambiar_disponibilidad_producto(
     payload: ProductoDisponibilidadUpdate,
     uow: UowDep,
     _usuario: AdminStockDep,
+    background_tasks: BackgroundTasks,
     producto_id: int = Path(..., ge=1),
 ) -> ProductoReadDetail:
-    return producto_service.cambiar_disponibilidad(uow, producto_id, payload.disponible)
+    producto = producto_service.cambiar_disponibilidad(uow, producto_id, payload.disponible)
+    _avisar_catalogo(background_tasks, "CATALOG_PRODUCT_UPDATED", producto_id=producto.id)
+    return producto
 
 
 @router.patch(
@@ -140,16 +160,21 @@ def actualizar_stock_producto(
 def activar_producto(
     uow: UowDep,
     _admin: AdminDep,
+    background_tasks: BackgroundTasks,
     producto_id: int = Path(..., ge=1),
 ) -> ProductoReadDetail:
-    return producto_service.activar(uow, producto_id)
+    producto = producto_service.activar(uow, producto_id)
+    _avisar_catalogo(background_tasks, "CATALOG_PRODUCT_UPDATED", producto_id=producto.id)
+    return producto
 
 
 @router.delete("/{producto_id}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_producto(
     uow: UowDep,
     _admin: AdminDep,
+    background_tasks: BackgroundTasks,
     producto_id: int = Path(..., ge=1),
 ) -> Response:
     producto_service.eliminar(uow, producto_id)
+    _avisar_catalogo(background_tasks, "CATALOG_PRODUCT_DELETED", producto_id=producto_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

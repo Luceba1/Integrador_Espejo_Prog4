@@ -52,6 +52,7 @@ def listar(
     incluir_eliminadas: bool = False,
     page: int = 1,
     size: int = 50,
+    search: str | None = None,
 ) -> list[Categoria]:
     return uow.categorias.list_paginated(
         parent_id=parent_id,
@@ -59,6 +60,7 @@ def listar(
         incluir_eliminadas=incluir_eliminadas,
         page=page,
         size=size,
+        search=search,
     )
 
 

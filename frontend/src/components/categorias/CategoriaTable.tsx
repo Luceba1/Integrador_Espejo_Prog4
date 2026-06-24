@@ -7,6 +7,8 @@ export interface CategoriaTableProps {
   onDelete: (categoria: Categoria) => void;
   onCreateChild?: (categoria: Categoria) => void;
   onActivate?: (categoria: Categoria) => void;
+  page?: number;
+  pageSize?: number;
 }
 
 type CategoriaNode = Categoria & { hijos: CategoriaNode[] };
@@ -52,9 +54,12 @@ export default function CategoriaTable({
   onDelete,
   onCreateChild,
   onActivate,
+  page,
+  pageSize,
 }: CategoriaTableProps) {
   const byId = new Map(items.map((categoria) => [categoria.id, categoria]));
-  const rows = flattenTree(buildTree(items));
+  const allRows = flattenTree(buildTree(items));
+  const rows = page && pageSize ? allRows.slice((page - 1) * pageSize, page * pageSize) : allRows;
 
   return (
     <div className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/70">
@@ -81,9 +86,10 @@ export default function CategoriaTable({
             {rows.map(({ node: categoria, depth, parentTrail, isLast }) => {
               const tieneHijos = categoria.hijos.length > 0;
               const padre = categoria.parent_id ? byId.get(categoria.parent_id) : null;
+              const isDeleted = Boolean(categoria.deleted_at);
 
               return (
-                <tr key={categoria.id} className={`border-t border-white/5 transition ${categoria.deleted_at ? "bg-slate-950/70 opacity-50 grayscale" : ""}`}>
+                <tr key={categoria.id} className={`border-t border-white/5 transition ${isDeleted ? "bg-slate-950/70 text-slate-500" : ""}`}>
                   <td className="px-5 py-4 text-slate-300">{categoria.id}</td>
                   <td className="px-5 py-4">
                     {categoria.imagen_url ? (
@@ -151,7 +157,7 @@ export default function CategoriaTable({
                             <button
                               type="button"
                               onClick={() => onActivate(categoria)}
-                              className="rounded-xl bg-emerald-500/15 px-3 py-2 font-medium text-emerald-200 hover:bg-emerald-500/25"
+                              className="rounded-xl bg-emerald-500 px-3 py-2 font-semibold text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-400"
                             >
                               Activar
                             </button>
@@ -159,21 +165,24 @@ export default function CategoriaTable({
                           <button
                             type="button"
                             onClick={() => onCreateChild?.(categoria)}
-                            className="rounded-xl bg-blue-500/15 px-3 py-2 font-medium text-blue-200 hover:bg-blue-500/25"
+                            disabled={isDeleted}
+                            className={isDeleted ? "cursor-not-allowed rounded-xl bg-slate-800 px-3 py-2 font-medium text-slate-500" : "rounded-xl bg-blue-500/15 px-3 py-2 font-medium text-blue-200 hover:bg-blue-500/25"}
                           >
                             Crear hija
                           </button>
                           <button
                             type="button"
                             onClick={() => onEdit(categoria)}
-                            className="rounded-xl bg-amber-500/15 px-3 py-2 font-medium text-amber-200 hover:bg-amber-500/25"
+                            disabled={isDeleted}
+                            className={isDeleted ? "cursor-not-allowed rounded-xl bg-slate-800 px-3 py-2 font-medium text-slate-500" : "rounded-xl bg-amber-500/15 px-3 py-2 font-medium text-amber-200 hover:bg-amber-500/25"}
                           >
                             Editar
                           </button>
                           <button
                             type="button"
                             onClick={() => onDelete(categoria)}
-                            className="rounded-xl bg-rose-500/15 px-3 py-2 font-medium text-rose-200 hover:bg-rose-500/25"
+                            disabled={isDeleted}
+                            className={isDeleted ? "cursor-not-allowed rounded-xl bg-slate-800 px-3 py-2 font-medium text-slate-500" : "rounded-xl bg-rose-500/15 px-3 py-2 font-medium text-rose-200 hover:bg-rose-500/25"}
                           >
                             Eliminar
                           </button>

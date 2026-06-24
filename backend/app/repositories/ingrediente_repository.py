@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
@@ -11,13 +12,37 @@ class IngredienteRepository(BaseRepository[Ingrediente]):
         super().__init__(session, Ingrediente)
 
 
-    def list_paginated(self, incluir_eliminados: bool = False, page: int = 1, size: int = 50) -> list[Ingrediente]:
+    def list_paginated(
+        self,
+        incluir_eliminados: bool = False,
+        page: int = 1,
+        size: int = 50,
+        search: str | None = None,
+        es_alergeno: bool | None = None,
+        unidad_medida_id: int | None = None,
+    ) -> list[Ingrediente]:
         statement = select(Ingrediente).options(selectinload(Ingrediente.unidad_medida))
         if not incluir_eliminados:
             statement = statement.where(
                 Ingrediente.activo == True,  # noqa: E712
                 Ingrediente.deleted_at.is_(None),  # type: ignore[attr-defined]
             )
+
+        if search:
+            pattern = f"%{search}%"
+            statement = statement.where(
+                or_(
+                    Ingrediente.nombre.ilike(pattern),
+                    Ingrediente.descripcion.ilike(pattern),
+                )
+            )
+
+        if es_alergeno is not None:
+            statement = statement.where(Ingrediente.es_alergeno == es_alergeno)
+
+        if unidad_medida_id is not None:
+            statement = statement.where(Ingrediente.unidad_medida_id == unidad_medida_id)
+
         statement = statement.order_by(Ingrediente.nombre).offset((page - 1) * size).limit(size)
         return list(self.session.exec(statement).all())
 

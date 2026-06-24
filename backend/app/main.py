@@ -32,6 +32,7 @@ from app.routers.unidad_medida_router import router as unidad_medida_router
 from app.routers.ws_router import router as ws_router
 from app.routers.export_router import router as export_router
 from app.routers.estadistica_router import router as estadistica_router
+from app.routers.empresa_router import router as empresa_router
 
 settings = get_settings()
 
@@ -86,6 +87,7 @@ app.include_router(ws_router, prefix="/api/v1")
 app.include_router(ws_router)  # Alias TPI: /ws/... además de /api/v1/ws/...
 app.include_router(export_router, prefix="/api/v1")
 app.include_router(estadistica_router, prefix="/api/v1")
+app.include_router(empresa_router, prefix="/api/v1")
 
 # Compatibilidad temporal con el frontend del Parcial 1 aprobado.
 # Cuando el frontend migre a axios, se consumen las rutas /api/v1.

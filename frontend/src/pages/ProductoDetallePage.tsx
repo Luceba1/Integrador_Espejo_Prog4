@@ -18,9 +18,9 @@ export default function ProductoDetallePage() {
       actions={
         <Link
           to="/admin/productos"
-          className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-slate-100 hover:bg-white/10"
+          className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 font-bold text-emerald-100 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500/25 hover:text-white"
         >
-          Volver a productos
+          ← Volver a productos
         </Link>
       }
     >

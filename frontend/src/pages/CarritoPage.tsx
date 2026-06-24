@@ -14,7 +14,10 @@ export default function CarritoPage() {
     <section className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Carrito</p>
+          <Link to="/store" className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-bold text-emerald-100 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500/25 hover:text-white">
+            ← Volver
+          </Link>
+          <p className="mt-4 text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Carrito</p>
           <h2 className="mt-2 text-3xl font-bold text-white">Tu pedido</h2>
           <p className="mt-2 text-slate-400">Persistencia con Zustand + localStorage: si recargás la página, el carrito se conserva.</p>
         </div>
@@ -29,7 +32,7 @@ export default function CarritoPage() {
         <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-center">
           <p className="text-lg font-semibold text-white">El carrito está vacío.</p>
           <Link to="/store" className="mt-4 inline-block rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-white hover:bg-emerald-400">
-            Ir al catálogo
+            Volver al catálogo
           </Link>
         </div>
       ) : (

@@ -23,6 +23,7 @@ class Producto(SQLModel, table=True):
     nombre: str = Field(index=True, min_length=2, max_length=150)
     descripcion: Optional[str] = Field(default=None, max_length=255)
     precio_base: Decimal = Field(default=0, max_digits=10, decimal_places=2, ge=0)
+    margen_ganancia_porcentaje: Decimal = Field(default=Decimal("0.00"), max_digits=6, decimal_places=2, ge=0)
     unidad_venta_id: Optional[int] = Field(default=None, foreign_key="unidad_medida.id", index=True)
     imagenes_url: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String)))
     stock_cantidad: int = Field(default=0, ge=0)

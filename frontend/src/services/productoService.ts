@@ -1,12 +1,13 @@
 import { request } from "./api";
 import type { Producto, ProductoDisponibilidadPayload, ProductoPayload, ProductoStockPayload } from "../types/producto";
 
-export function getProductos(search = "", page = 1, size = 10, filters?: { disponible?: boolean; incluir_eliminados?: boolean }) {
+export function getProductos(search = "", page = 1, size = 10, filters?: { disponible?: boolean; incluir_eliminados?: boolean; categoria_id?: number }) {
   const params = new URLSearchParams();
 
   if (search.trim()) params.set("search", search.trim());
   if (typeof filters?.disponible === "boolean") params.set("disponible", String(filters.disponible));
   if (typeof filters?.incluir_eliminados === "boolean") params.set("incluir_eliminados", String(filters.incluir_eliminados));
+  if (filters?.categoria_id) params.set("categoria_id", String(filters.categoria_id));
   params.set("page", String(page));
   params.set("size", String(size));
 

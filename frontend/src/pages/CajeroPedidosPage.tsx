@@ -143,6 +143,17 @@ export default function CajeroPedidosPage() {
                       <EstadoBadge estado={pedido.estado_codigo} />
                     </div>
                     <p className="mt-2 text-sm text-slate-400">Usuario #{pedido.usuario_id} · Pago {pedido.forma_pago_codigo}</p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                      <span className={pedido.tipo_entrega === "ENVIO" ? "rounded-full bg-sky-500/15 px-3 py-1 text-sky-200" : "rounded-full bg-emerald-500/15 px-3 py-1 text-emerald-200"}>
+                        {pedido.tipo_entrega === "ENVIO" ? "Envío a domicilio" : "Retiro en el lugar"}
+                      </span>
+                    </div>
+                    {pedido.tipo_entrega === "RETIRO" && pedido.domicilio_retiro_snap ? (
+                      <p className="mt-2 text-sm text-slate-400">Retiro: {pedido.domicilio_retiro_snap}</p>
+                    ) : null}
+                    {pedido.forma_pago_codigo === "TRANSFERENCIA" && pedido.datos_transferencia_snap ? (
+                      <p className="mt-2 text-sm text-sky-200">Transferencia: {pedido.datos_transferencia_snap}</p>
+                    ) : null}
                     <p className="mt-2 text-lg font-semibold text-emerald-300">{formatMoney(pedido.total)}</p>
                   </div>
                   <div className="flex flex-col gap-2 md:items-end">

@@ -25,6 +25,7 @@ def listar_categorias(
     parent_id: Annotated[int | None, Query(ge=1)] = None,
     solo_raiz: Annotated[bool, Query(description="Si es true, devuelve solo categorías raíz.")] = False,
     incluir_eliminadas: Annotated[bool, Query()] = False,
+    search: Annotated[str | None, Query(max_length=100)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[CategoriaRead]:
@@ -33,6 +34,7 @@ def listar_categorias(
         parent_id=parent_id,
         solo_raiz=solo_raiz,
         incluir_eliminadas=incluir_eliminadas,
+        search=search,
         page=page,
         size=size,
     )

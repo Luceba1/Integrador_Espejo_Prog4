@@ -17,6 +17,10 @@ from app.repositories.unidad_medida_repository import UnidadMedidaRepository
 from app.repositories.rol_repository import RolRepository
 from app.repositories.usuario_repository import UsuarioRepository
 from app.repositories.pago_repository import PagoRepository
+from app.repositories.refresh_token_repository import RefreshTokenRepository
+from app.repositories.dashboard_repository import DashboardRepository
+from app.repositories.estadistica_repository import EstadisticaRepository
+from app.repositories.configuracion_empresa_repository import ConfiguracionEmpresaRepository
 
 
 class SQLModelUnitOfWork:
@@ -34,6 +38,10 @@ class SQLModelUnitOfWork:
     historial_estados: HistorialEstadoRepository
     pagos: PagoRepository
     unidades_medida: UnidadMedidaRepository
+    refresh_tokens: RefreshTokenRepository
+    dashboard: DashboardRepository
+    estadisticas: EstadisticaRepository
+    configuracion_empresa: ConfiguracionEmpresaRepository
 
     def __enter__(self) -> "SQLModelUnitOfWork":
         try:
@@ -54,6 +62,10 @@ class SQLModelUnitOfWork:
         self.historial_estados = HistorialEstadoRepository(self.session)
         self.pagos = PagoRepository(self.session)
         self.unidades_medida = UnidadMedidaRepository(self.session)
+        self.refresh_tokens = RefreshTokenRepository(self.session)
+        self.dashboard = DashboardRepository(self.session)
+        self.estadisticas = EstadisticaRepository(self.session)
+        self.configuracion_empresa = ConfiguracionEmpresaRepository(self.session)
         return self
 
     def __exit__(

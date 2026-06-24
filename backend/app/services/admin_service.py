@@ -1,16 +1,8 @@
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
-from sqlmodel import select
 
-from app.models.detalle_pedido import DetallePedido
-from app.models.ingrediente import Ingrediente
-from app.models.pago import Pago
-from app.models.pedido import Pedido
-from app.models.producto import Producto
-from app.models.unidad_medida import UnidadMedida
 from app.models.usuario import Usuario
 from app.schemas.admin_schema import (
     DashboardEstadoPedido,
@@ -176,29 +168,12 @@ def activar_usuario(uow: SQLModelUnitOfWork, usuario_id: int) -> Usuario:
     return uow.usuarios.update(usuario)
 
 
-def _scalar_int(uow: SQLModelUnitOfWork, statement) -> int:
-    value = uow.session.exec(statement).one()
-    return int(value or 0)
-
-
-def _scalar_decimal(uow: SQLModelUnitOfWork, statement) -> Decimal:
-    value = uow.session.exec(statement).one()
-    return Decimal(str(value or 0))
-
-
-def _fecha_desde_db(value) -> date:
-    if isinstance(value, date):
-        return value
-    return datetime.strptime(str(value), "%Y-%m-%d").date()
-
 
 def obtener_metricas_dashboard(uow: SQLModelUnitOfWork) -> DashboardMetricasRead:
     """Dashboard administrativo completo con métricas y series para gráficos.
 
-    El TPI pide un panel de administración con gráficos y métricas operativas.
-    Esta función concentra datos de ventas, pagos, estados de pedidos, stock y
-    productos más vendidos para que el frontend pueda renderizar una sección
-    de análisis más completa sin mezclar lógica SQL en la UI.
+    El service no arma consultas SQL directamente: delega todos los SELECT,
+    JOIN y GROUP BY en DashboardRepository a través del UoW.
     """
 
     estados_venta = ["CONFIRMADO", "EN_PREP", "ENTREGADO"]
@@ -206,148 +181,28 @@ def obtener_metricas_dashboard(uow: SQLModelUnitOfWork) -> DashboardMetricasRead
     inicio_hoy = datetime.combine(hoy, datetime.min.time(), tzinfo=timezone.utc)
     inicio_7_dias = inicio_hoy - timedelta(days=6)
 
-    productos_activos = _scalar_int(
-        uow,
-        select(func.count(Producto.id)).where(
-            Producto.activo == True,  # noqa: E712
-            Producto.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
-    ingredientes_activos = _scalar_int(
-        uow,
-        select(func.count(Ingrediente.id)).where(
-            Ingrediente.activo == True,  # noqa: E712
-            Ingrediente.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
-    usuarios_activos = _scalar_int(
-        uow,
-        select(func.count(Usuario.id)).where(
-            Usuario.activo == True,  # noqa: E712
-            Usuario.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
-    pedidos_activos = _scalar_int(
-        uow,
-        select(func.count(Pedido.id)).where(
-            Pedido.activo == True,  # noqa: E712
-            Pedido.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
-    pedidos_hoy = _scalar_int(
-        uow,
-        select(func.count(Pedido.id)).where(
-            Pedido.created_at >= inicio_hoy,
-            Pedido.activo == True,  # noqa: E712
-            Pedido.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
-    pagos_aprobados = _scalar_int(
-        uow,
-        select(func.count(Pago.id)).where(
-            Pago.estado == "aprobado",
-            Pago.activo == True,  # noqa: E712
-            Pago.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
-    pagos_rechazados = _scalar_int(
-        uow,
-        select(func.count(Pago.id)).where(
-            Pago.estado.in_(["rechazado", "rejected"]),
-            Pago.activo == True,  # noqa: E712
-            Pago.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
-    stock_critico = _scalar_int(
-        uow,
-        select(func.count(Ingrediente.id)).where(
-            Ingrediente.stock_cantidad <= 5,
-            Ingrediente.activo == True,  # noqa: E712
-            Ingrediente.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
-
-    ventas_confirmadas = _scalar_decimal(
-        uow,
-        select(func.coalesce(func.sum(Pedido.total), 0)).where(
-            Pedido.estado_codigo.in_(estados_venta),
-            Pedido.activo == True,  # noqa: E712
-            Pedido.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
-    ventas_hoy = _scalar_decimal(
-        uow,
-        select(func.coalesce(func.sum(Pedido.total), 0)).where(
-            Pedido.created_at >= inicio_hoy,
-            Pedido.estado_codigo.in_(estados_venta),
-            Pedido.activo == True,  # noqa: E712
-            Pedido.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
-    pedidos_venta = _scalar_int(
-        uow,
-        select(func.count(Pedido.id)).where(
-            Pedido.estado_codigo.in_(estados_venta),
-            Pedido.activo == True,  # noqa: E712
-            Pedido.deleted_at.is_(None),  # type: ignore[attr-defined]
-        ),
-    )
+    metricas = uow.dashboard.obtener_metricas_generales(estados_venta, inicio_hoy)
+    pedidos_venta = metricas.pop("pedidos_venta")
+    ventas_confirmadas = metricas["ventas_confirmadas"]
     ticket_promedio = (ventas_confirmadas / pedidos_venta).quantize(Decimal("0.01")) if pedidos_venta else Decimal("0.00")
 
-    filas_estado = uow.session.exec(
-        select(Pedido.estado_codigo, func.count(Pedido.id))
-        .where(
-            Pedido.activo == True,  # noqa: E712
-            Pedido.deleted_at.is_(None),  # type: ignore[attr-defined]
-        )
-        .group_by(Pedido.estado_codigo)
-        .order_by(Pedido.estado_codigo)
-    ).all()
     pedidos_por_estado = [
         DashboardEstadoPedido(estado_codigo=str(estado), total=int(total or 0))
-        for estado, total in filas_estado
+        for estado, total in uow.dashboard.obtener_pedidos_por_estado()
     ]
 
-    filas_forma_pago = uow.session.exec(
-        select(
-            Pedido.forma_pago_codigo,
-            func.count(Pedido.id),
-            func.coalesce(func.sum(Pedido.total), 0),
-        )
-        .where(
-            Pedido.estado_codigo.in_(estados_venta),
-            Pedido.activo == True,  # noqa: E712
-            Pedido.deleted_at.is_(None),  # type: ignore[attr-defined]
-        )
-        .group_by(Pedido.forma_pago_codigo)
-        .order_by(func.coalesce(func.sum(Pedido.total), 0).desc())
-    ).all()
     ventas_por_forma_pago = [
         DashboardVentaFormaPago(
             forma_pago_codigo=str(forma_pago),
             total_pedidos=int(total_pedidos or 0),
             total_ventas=Decimal(str(total_ventas or 0)),
         )
-        for forma_pago, total_pedidos, total_ventas in filas_forma_pago
+        for forma_pago, total_pedidos, total_ventas in uow.dashboard.obtener_ventas_por_forma_pago(estados_venta)
     ]
 
-    filas_7_dias = uow.session.exec(
-        select(
-            func.date(Pedido.created_at),
-            func.count(Pedido.id),
-            func.coalesce(func.sum(Pedido.total), 0),
-        )
-        .where(
-            Pedido.created_at >= inicio_7_dias,
-            Pedido.estado_codigo.in_(estados_venta),
-            Pedido.activo == True,  # noqa: E712
-            Pedido.deleted_at.is_(None),  # type: ignore[attr-defined]
-        )
-        .group_by(func.date(Pedido.created_at))
-        .order_by(func.date(Pedido.created_at))
-    ).all()
+    filas_7_dias = uow.dashboard.obtener_pedidos_ultimos_7_dias(estados_venta, inicio_7_dias)
     datos_por_dia = {
-        _fecha_desde_db(fecha): (int(total or 0), Decimal(str(ventas or 0)))
+        uow.dashboard._fecha_desde_db(fecha): (int(total or 0), Decimal(str(ventas or 0)))
         for fecha, total, ventas in filas_7_dias
     }
     pedidos_ultimos_7_dias = []
@@ -363,23 +218,6 @@ def obtener_metricas_dashboard(uow: SQLModelUnitOfWork) -> DashboardMetricasRead
             )
         )
 
-    filas_top_productos = uow.session.exec(
-        select(
-            DetallePedido.producto_id,
-            DetallePedido.nombre_producto_snap,
-            func.coalesce(func.sum(DetallePedido.cantidad), 0),
-            func.coalesce(func.sum(DetallePedido.subtotal_snap), 0),
-        )
-        .join(Pedido, Pedido.id == DetallePedido.pedido_id)
-        .where(
-            Pedido.estado_codigo.in_(estados_venta),
-            Pedido.activo == True,  # noqa: E712
-            Pedido.deleted_at.is_(None),  # type: ignore[attr-defined]
-        )
-        .group_by(DetallePedido.producto_id, DetallePedido.nombre_producto_snap)
-        .order_by(func.coalesce(func.sum(DetallePedido.cantidad), 0).desc())
-        .limit(5)
-    ).all()
     top_productos = [
         DashboardTopProducto(
             producto_id=int(producto_id),
@@ -387,20 +225,9 @@ def obtener_metricas_dashboard(uow: SQLModelUnitOfWork) -> DashboardMetricasRead
             unidades_vendidas=int(unidades or 0),
             total_vendido=Decimal(str(total_vendido or 0)),
         )
-        for producto_id, nombre, unidades, total_vendido in filas_top_productos
+        for producto_id, nombre, unidades, total_vendido in uow.dashboard.obtener_top_productos(estados_venta, limit=5)
     ]
 
-    filas_stock_bajo = uow.session.exec(
-        select(Ingrediente.id, Ingrediente.nombre, Ingrediente.stock_cantidad, UnidadMedida.simbolo)
-        .join(UnidadMedida, UnidadMedida.id == Ingrediente.unidad_medida_id, isouter=True)
-        .where(
-            Ingrediente.stock_cantidad <= 5,
-            Ingrediente.activo == True,  # noqa: E712
-            Ingrediente.deleted_at.is_(None),  # type: ignore[attr-defined]
-        )
-        .order_by(Ingrediente.stock_cantidad.asc(), Ingrediente.nombre.asc())
-        .limit(6)
-    ).all()
     ingredientes_stock_bajo = [
         DashboardIngredienteStockBajo(
             ingrediente_id=int(ingrediente_id),
@@ -408,20 +235,20 @@ def obtener_metricas_dashboard(uow: SQLModelUnitOfWork) -> DashboardMetricasRead
             stock_cantidad=Decimal(str(stock_cantidad or 0)),
             unidad_simbolo=str(unidad_simbolo) if unidad_simbolo else None,
         )
-        for ingrediente_id, nombre, stock_cantidad, unidad_simbolo in filas_stock_bajo
+        for ingrediente_id, nombre, stock_cantidad, unidad_simbolo in uow.dashboard.obtener_ingredientes_stock_bajo(limit=6)
     ]
 
     return DashboardMetricasRead(
-        productos_activos=productos_activos,
-        ingredientes_activos=ingredientes_activos,
-        usuarios_activos=usuarios_activos,
-        pedidos_activos=pedidos_activos,
-        pedidos_hoy=pedidos_hoy,
-        pagos_aprobados=pagos_aprobados,
-        pagos_rechazados=pagos_rechazados,
-        stock_critico=stock_critico,
-        ventas_confirmadas=ventas_confirmadas,
-        ventas_hoy=ventas_hoy,
+        productos_activos=metricas["productos_activos"],
+        ingredientes_activos=metricas["ingredientes_activos"],
+        usuarios_activos=metricas["usuarios_activos"],
+        pedidos_activos=metricas["pedidos_activos"],
+        pedidos_hoy=metricas["pedidos_hoy"],
+        pagos_aprobados=metricas["pagos_aprobados"],
+        pagos_rechazados=metricas["pagos_rechazados"],
+        stock_critico=metricas["stock_critico"],
+        ventas_confirmadas=metricas["ventas_confirmadas"],
+        ventas_hoy=metricas["ventas_hoy"],
         ticket_promedio=ticket_promedio,
         pedidos_por_estado=pedidos_por_estado,
         ventas_por_forma_pago=ventas_por_forma_pago,

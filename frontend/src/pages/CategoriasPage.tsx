@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import CategoriaModal from "../components/categorias/CategoriaModal";
 import CategoriaTable from "../components/categorias/CategoriaTable";
@@ -23,18 +23,48 @@ export default function CategoriasPage() {
   const [defaultParentId, setDefaultParentId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [incluirEliminadas, setIncluirEliminadas] = useState(false);
+  const [soloRaiz, setSoloRaiz] = useState(false);
+  const [search, setSearch] = useState("");
+  const [currentSearch, setCurrentSearch] = useState("");
   const [exportando, setExportando] = useState(false);
 
   const { hasRole } = useAuth();
   const canManage = hasRole("ADMIN");
 
-  const categoriasQuery = useCategorias({ page, size: PAGE_SIZE, incluir_eliminadas: incluirEliminadas });
+  const categoriasQuery = useCategorias({
+    full: true,
+    incluir_eliminadas: incluirEliminadas,
+    solo_raiz: soloRaiz,
+    search: currentSearch,
+  });
   const crearMutation = useCrearCategoria();
   const actualizarMutation = useActualizarCategoria();
   const eliminarMutation = useEliminarCategoria();
   const activarMutation = useActivarCategoria();
   const deleting = eliminarMutation.isPending;
-  const canGoNext = useMemo(() => (categoriasQuery.data?.length ?? 0) === PAGE_SIZE, [categoriasQuery.data]);
+  const totalCategorias = categoriasQuery.data?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCategorias / PAGE_SIZE));
+  const canGoNext = page < totalPages;
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setCurrentSearch(search);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setCurrentSearch("");
+    setSoloRaiz(false);
+    setIncluirEliminadas(false);
+    setPage(1);
+  }
 
   function handleNew() {
     if (!canManage) return;
@@ -100,7 +130,6 @@ export default function CategoriasPage() {
     }
   }
 
-
   async function handleActivate(categoria: Categoria) {
     if (!canManage) return;
     try {
@@ -124,7 +153,7 @@ export default function CategoriasPage() {
   return (
     <PageContainer
       title="Categorías"
-      subtitle="ABM de categorías jerárquicas con vista árbol y creación de subcategorías."
+      subtitle="ABM de categorías jerárquicas con vista árbol, búsqueda y filtros de administración."
       actions={
         <div className="flex flex-wrap gap-2">
           <button
@@ -147,14 +176,39 @@ export default function CategoriasPage() {
       }
     >
       <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-        <label className="flex items-center gap-2 text-sm text-slate-300">
+        <form className="grid gap-3 lg:grid-cols-[1fr_auto_auto]" onSubmit={handleSearchSubmit}>
           <input
-            type="checkbox"
-            checked={incluirEliminadas}
-            onChange={(event) => { setIncluirEliminadas(event.target.checked); setPage(1); }}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Buscar por nombre o descripción"
+            className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-500"
           />
-          Ver categorías eliminadas
-        </label>
+          <button type="submit" disabled={categoriasQuery.isFetching} className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-slate-100 hover:bg-white/10 disabled:opacity-60">
+            Buscar
+          </button>
+          <button type="button" onClick={clearFilters} className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-slate-100 hover:bg-white/10">
+            Limpiar
+          </button>
+        </form>
+
+        <div className="mt-4 flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={soloRaiz}
+              onChange={(event) => { setSoloRaiz(event.target.checked); setPage(1); }}
+            />
+            Mostrar solo categorías raíz
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={incluirEliminadas}
+              onChange={(event) => { setIncluirEliminadas(event.target.checked); setPage(1); }}
+            />
+            Ver categorías eliminadas
+          </label>
+        </div>
       </div>
 
       {categoriasQuery.isLoading ? (
@@ -179,12 +233,14 @@ export default function CategoriasPage() {
           onDelete={handleDelete}
           onCreateChild={handleNewChild}
           onActivate={handleActivate}
+          page={page}
+          pageSize={PAGE_SIZE}
         />
       ) : null}
 
       <div className="flex items-center justify-between rounded-3xl border border-white/10 bg-white/5 px-5 py-4">
         <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1 || categoriasQuery.isFetching} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-50">Página anterior</button>
-        <p className="text-sm text-slate-300">Página {page}{categoriasQuery.isFetching ? " · actualizando..." : ""}</p>
+        <p className="text-sm text-slate-300">Página {page} de {totalPages}{categoriasQuery.isFetching ? " · actualizando..." : ""}</p>
         <button type="button" onClick={() => setPage((current) => current + 1)} disabled={!canGoNext || categoriasQuery.isFetching} className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-50">Página siguiente</button>
       </div>
 

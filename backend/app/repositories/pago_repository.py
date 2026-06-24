@@ -26,6 +26,10 @@ class PagoRepository(BaseRepository[Pago]):
         statement = select(Pago).where(Pago.idempotency_key == key)
         return self.session.exec(statement).first()
 
+    def get_by_external_reference(self, external_reference: str) -> Optional[Pago]:
+        statement = select(Pago).where(Pago.external_reference == external_reference)
+        return self.session.exec(statement).first()
+
     def get_by_mp_payment_id(self, mp_payment_id: int) -> Optional[Pago]:
         statement = select(Pago).where(Pago.mp_payment_id == mp_payment_id)
         return self.session.exec(statement).first()

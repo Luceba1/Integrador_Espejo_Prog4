@@ -25,6 +25,9 @@ export interface Pedido {
   direccion_id?: number | null;
   estado_codigo: string;
   forma_pago_codigo: string;
+  tipo_entrega: "RETIRO" | "ENVIO" | string;
+  domicilio_retiro_snap?: string | null;
+  datos_transferencia_snap?: string | null;
   subtotal: number;
   descuento: number;
   costo_envio: number;
@@ -70,6 +73,7 @@ export interface PedidoItemCreate {
 
 export interface PedidoCreatePayload {
   direccion_id?: number | null;
+  tipo_entrega?: "RETIRO" | "ENVIO" | string;
   forma_pago_codigo: string;
   notas?: string | null;
   descuento: number;

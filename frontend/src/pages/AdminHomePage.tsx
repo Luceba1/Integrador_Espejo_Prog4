@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import {
   Area,
   AreaChart,
@@ -24,34 +23,6 @@ import type {
   DashboardTopProducto,
   DashboardVentaFormaPago,
 } from "../types/admin";
-
-const cards = [
-  {
-    title: "Store público",
-    description: "Catálogo, carrito Zustand + localStorage y creación de pedidos como cliente.",
-    to: "/store",
-  },
-  {
-    title: "Catálogo",
-    description: "Categorías, ingredientes y productos con server state y CRUD protegido.",
-    to: "/admin/productos",
-  },
-  {
-    title: "Unidades de medida",
-    description: "Catálogo v7 para vender productos por unidad, kilo, litro u otra medida.",
-    to: "/admin/unidades-medida",
-  },
-  {
-    title: "Usuarios",
-    description: "Panel ADMIN para listar, editar, eliminar y asignar roles.",
-    to: "/admin/usuarios",
-  },
-  {
-    title: "Cajero / Pedidos",
-    description: "Gestión de estados de pedidos para ADMIN y PEDIDOS.",
-    to: "/admin/pedidos",
-  },
-];
 
 const moneyFormatter = new Intl.NumberFormat("es-AR", {
   style: "currency",
@@ -468,19 +439,6 @@ export default function AdminHomePage() {
           No se pudieron cargar las métricas del dashboard.
         </div>
       )}
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {cards.map((card) => (
-          <Link
-            key={card.to}
-            to={card.to}
-            className="rounded-3xl border border-white/10 bg-slate-900/70 p-6 transition hover:-translate-y-1 hover:bg-slate-900"
-          >
-            <h3 className="text-xl font-bold text-white">{card.title}</h3>
-            <p className="mt-3 text-sm text-slate-300">{card.description}</p>
-          </Link>
-        ))}
-      </div>
     </PageContainer>
   );
 }

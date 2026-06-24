@@ -23,6 +23,7 @@ class ProductoCreate(SQLModel):
     nombre: str = Field(min_length=2, max_length=120)
     descripcion: Optional[str] = Field(default=None, max_length=255)
     precio_base: Decimal = Field(default=0, max_digits=10, decimal_places=2, ge=0)
+    margen_ganancia_porcentaje: Decimal = Field(default=Decimal("0.00"), max_digits=6, decimal_places=2, ge=0)
     unidad_venta_id: Optional[int] = Field(default=None, ge=1)
     imagenes_url: list[str] = Field(default_factory=list)
     # Se conserva por compatibilidad con la BD anterior, pero el stock real se calcula desde ingredientes.
@@ -37,6 +38,7 @@ class ProductoUpdate(SQLModel):
     nombre: Optional[str] = Field(default=None, min_length=2, max_length=120)
     descripcion: Optional[str] = Field(default=None, max_length=255)
     precio_base: Optional[Decimal] = Field(default=None, max_digits=10, decimal_places=2, ge=0)
+    margen_ganancia_porcentaje: Optional[Decimal] = Field(default=None, max_digits=6, decimal_places=2, ge=0)
     unidad_venta_id: Optional[int] = Field(default=None, ge=1)
     imagenes_url: Optional[list[str]] = None
     stock_cantidad: Optional[int] = Field(default=None, ge=0)
@@ -76,6 +78,9 @@ class ProductoRead(SQLModel):
     nombre: str
     descripcion: Optional[str] = None
     precio_base: Decimal
+    margen_ganancia_porcentaje: Decimal
+    costo_ingredientes: Decimal = Decimal("0.00")
+    precio_sugerido: Decimal = Decimal("0.00")
     unidad_venta_id: Optional[int] = None
     unidad_venta: Optional[UnidadMedidaRead] = None
     imagenes_url: list[str] = Field(default_factory=list)
@@ -94,6 +99,9 @@ class ProductoReadDetail(SQLModel):
     nombre: str
     descripcion: Optional[str] = None
     precio_base: Decimal
+    margen_ganancia_porcentaje: Decimal
+    costo_ingredientes: Decimal = Decimal("0.00")
+    precio_sugerido: Decimal = Decimal("0.00")
     unidad_venta_id: Optional[int] = None
     unidad_venta: Optional[UnidadMedidaRead] = None
     imagenes_url: list[str] = Field(default_factory=list)

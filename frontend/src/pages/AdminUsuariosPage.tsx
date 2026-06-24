@@ -186,7 +186,7 @@ export default function AdminUsuariosPage() {
               </thead>
               <tbody>
                 {usuariosQuery.data.map((usuario) => (
-                  <tr key={usuario.id} className={`border-t border-white/5 align-top transition ${usuario.deleted_at ? "bg-slate-950/70 opacity-50 grayscale" : ""}`}>
+                  <tr key={usuario.id} className={`border-t border-white/5 align-top transition ${usuario.deleted_at ? "bg-slate-950/70 text-slate-500" : ""}`}>
                     <td className="px-5 py-4">
                       <p className="font-semibold text-white">{usuario.nombre} {usuario.apellido ?? ""}</p>
                       <p className="mt-1 text-xs text-slate-400">{usuario.email}</p>
@@ -212,9 +212,9 @@ export default function AdminUsuariosPage() {
                     </td>
                     <td className="px-5 py-4 text-right">
                       <div className="flex justify-end gap-2">
-                        {usuario.deleted_at ? <button type="button" onClick={() => handleActivate(usuario)} disabled={activarUsuario.isPending} className="rounded-xl bg-emerald-500/15 px-3 py-2 font-medium text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-60">Activar</button> : null}
-                        <button type="button" onClick={() => startEdit(usuario)} disabled={Boolean(usuario.deleted_at)} className="rounded-xl bg-amber-500/15 px-3 py-2 font-medium text-amber-200 hover:bg-amber-500/25 disabled:opacity-60">Editar</button>
-                        <button type="button" onClick={() => handleDelete(usuario)} disabled={eliminarUsuario.isPending || Boolean(usuario.deleted_at)} className="rounded-xl bg-rose-500/15 px-3 py-2 font-medium text-rose-200 hover:bg-rose-500/25 disabled:opacity-60">Eliminar</button>
+                        {usuario.deleted_at ? <button type="button" onClick={() => handleActivate(usuario)} disabled={activarUsuario.isPending} className="rounded-xl bg-emerald-500 px-3 py-2 font-semibold text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 disabled:opacity-60">Activar</button> : null}
+                        <button type="button" onClick={() => startEdit(usuario)} disabled={Boolean(usuario.deleted_at)} className={usuario.deleted_at ? "cursor-not-allowed rounded-xl bg-slate-800 px-3 py-2 font-medium text-slate-500" : "rounded-xl bg-amber-500/15 px-3 py-2 font-medium text-amber-200 hover:bg-amber-500/25 disabled:opacity-60"}>Editar</button>
+                        <button type="button" onClick={() => handleDelete(usuario)} disabled={eliminarUsuario.isPending || Boolean(usuario.deleted_at)} className={usuario.deleted_at ? "cursor-not-allowed rounded-xl bg-slate-800 px-3 py-2 font-medium text-slate-500" : "rounded-xl bg-rose-500/15 px-3 py-2 font-medium text-rose-200 hover:bg-rose-500/25 disabled:opacity-60"}>Eliminar</button>
                       </div>
                     </td>
                   </tr>

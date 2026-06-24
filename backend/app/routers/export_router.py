@@ -31,6 +31,29 @@ def _fmt(value):
     return value
 
 
+def _precio_por_unidad(ingrediente) -> Decimal:
+    unitario = Decimal(getattr(ingrediente, "precio_costo_unitario", 0) or 0)
+    if unitario > 0:
+        return unitario
+    stock = Decimal(ingrediente.stock_cantidad or 0)
+    precio_total = Decimal(getattr(ingrediente, "precio_costo_total", 0) or 0)
+    if stock <= 0 or precio_total <= 0:
+        return Decimal("0.00")
+    return precio_total / stock
+
+
+def _costos_producto(uow: SQLModelUnitOfWork, producto) -> tuple[Decimal, Decimal]:
+    costo = Decimal("0.00")
+    for config in uow.productos.list_ingrediente_config(producto.id):
+        ingrediente = uow.ingredientes.get_by_id_with_unit(config.ingrediente_id)
+        if ingrediente:
+            costo += _precio_por_unidad(ingrediente) * Decimal(config.cantidad or 0)
+    costo = costo.quantize(Decimal("0.01"))
+    margen = Decimal(getattr(producto, "margen_ganancia_porcentaje", 0) or 0)
+    sugerido = (costo * (Decimal("1") + margen / Decimal("100"))).quantize(Decimal("0.01"))
+    return costo, sugerido
+
+
 def _xlsx_response(filename: str, headers: list[str], rows: Iterable[Iterable[object]]) -> StreamingResponse:
     wb = Workbook()
     ws = wb.active
@@ -77,11 +100,15 @@ def exportar_productos(
             unidad = uow.unidades_medida.get_by_id(config.unidad_medida_id) if config.unidad_medida_id else None
             if ingrediente:
                 ingredientes.append(f"{ingrediente.nombre}: {config.cantidad} {unidad.simbolo if unidad else ''}".strip())
+        costo_ingredientes, precio_sugerido = _costos_producto(uow, producto)
         rows.append([
             producto.id,
             producto.nombre,
             producto.descripcion,
             producto.precio_base,
+            costo_ingredientes,
+            producto.margen_ganancia_porcentaje,
+            precio_sugerido,
             producto.disponible,
             producto.activo,
             "Eliminado" if producto.deleted_at else "Activo",
@@ -95,7 +122,7 @@ def exportar_productos(
         ])
     return _xlsx_response(
         "productos.xlsx",
-        ["ID", "Nombre", "Descripción", "Precio", "Disponible", "Activo", "Estado", "Unidad venta", "Categorías", "Receta/ingredientes", "Imágenes", "Creado", "Actualizado", "Eliminado"],
+        ["ID", "Nombre", "Descripción", "Precio", "Costo ingredientes", "Margen %", "Precio sugerido", "Disponible", "Activo", "Estado", "Unidad venta", "Categorías", "Receta/ingredientes", "Imágenes", "Creado", "Actualizado", "Eliminado"],
         rows,
     )
 
@@ -145,6 +172,8 @@ def exportar_ingredientes(
             item.descripcion,
             item.es_alergeno,
             item.stock_cantidad,
+            item.precio_costo_total,
+            _precio_por_unidad(item).quantize(Decimal("0.01")),
             item.unidad_medida.simbolo if item.unidad_medida else "",
             item.unidad_medida.nombre if item.unidad_medida else "",
             item.activo,
@@ -157,7 +186,7 @@ def exportar_ingredientes(
     ]
     return _xlsx_response(
         "ingredientes.xlsx",
-        ["ID", "Nombre", "Descripción", "Alérgeno", "Stock", "Unidad", "Unidad nombre", "Activo", "Estado", "Creado", "Actualizado", "Eliminado"],
+        ["ID", "Nombre", "Descripción", "Alérgeno", "Stock", "Precio total", "Precio x unidad", "Unidad", "Unidad nombre", "Activo", "Estado", "Creado", "Actualizado", "Eliminado"],
         rows,
     )
 

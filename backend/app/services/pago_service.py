@@ -6,8 +6,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
-from sqlmodel import select
-
+from sqlalchemy.exc import IntegrityError
 from app.core.config import get_settings
 from app.models.pago import Pago
 from app.models.usuario import Usuario
@@ -176,17 +175,46 @@ def _mapear_estado_mp(estado_mp: str | None) -> str | None:
 
 
 def _ultimo_pago_por_pedido(uow: SQLModelUnitOfWork, pedido_id: int) -> Pago | None:
-    stmt = select(Pago).where(Pago.pedido_id == pedido_id).order_by(Pago.created_at.desc())
-    return uow.session.exec(stmt).first()
+    return uow.pagos.get_ultimo_by_pedido(pedido_id)
+
+
+def _pago_por_pedido_o_referencia(uow: SQLModelUnitOfWork, pedido_id: int) -> Pago | None:
+    """Devuelve el pago local asociado al pedido.
+
+    La columna external_reference es única porque MercadoPago usa el pedido como
+    referencia externa. Por eso, para reintentos o dobles clics, se reutiliza el
+    mismo registro en lugar de insertar otro pago con la misma referencia.
+    """
+    pago = uow.pagos.get_by_external_reference(str(pedido_id))
+    return pago or _ultimo_pago_por_pedido(uow, pedido_id)
+
+
+def _response_desde_pago(pago: Pago, settings=None) -> PagoCrearResponse:
+    settings = settings or get_settings()
+    return PagoCrearResponse(
+        pago_id=pago.id,
+        preference_id=pago.mp_preference_id or "",
+        init_point=pago.mp_init_point,
+        sandbox_init_point=None,
+        public_key=settings.MP_PUBLIC_KEY,
+    )
+
+
+def _cancelar_pago_local_por_error(uow: SQLModelUnitOfWork, pago: Pago, motivo: str) -> None:
+    """Marca el intento de pago como cancelado para permitir reintentos limpios."""
+    pago.estado = "cancelado"
+    pago.mp_status = "cancelled"
+    pago.mp_status_detail = motivo[:100]
+    pago.updated_at = datetime.now(timezone.utc)
+    uow.pagos.update(pago)
+    uow.session.flush()
 
 
 def _buscar_pago_local(uow: SQLModelUnitOfWork, pago_mp_id: int, mp_info: dict) -> Pago | None:
-    stmt = select(Pago).where(Pago.mp_payment_id == pago_mp_id)
-    pago = uow.session.exec(stmt).first()
+    pago = uow.pagos.get_by_mp_payment_id(pago_mp_id)
 
     if not pago and mp_info.get("mp_merchant_order_id"):
-        stmt_merchant = select(Pago).where(Pago.mp_merchant_order_id == mp_info["mp_merchant_order_id"])
-        pago = uow.session.exec(stmt_merchant).first()
+        pago = uow.pagos.get_by_mp_merchant_order_id(mp_info["mp_merchant_order_id"])
 
     if not pago and mp_info.get("external_reference"):
         try:
@@ -238,6 +266,24 @@ def crear_pago(uow: SQLModelUnitOfWork, usuario: Usuario, pedido_id: int) -> Pag
             detail="MercadoPago no configurado. Configure MP_ACCESS_TOKEN",
         )
 
+    pago_existente = _pago_por_pedido_o_referencia(uow, pedido_id)
+
+    # Doble clic, recarga o vuelta desde Mis pedidos: si ya hay una preferencia
+    # pendiente usable, no se crea otro pago ni se viola el unique de external_reference.
+    if (
+        pago_existente
+        and pago_existente.estado == "pendiente"
+        and pago_existente.mp_preference_id
+        and pago_existente.mp_init_point
+    ):
+        return _response_desde_pago(pago_existente, settings)
+
+    if pago_existente and pago_existente.estado == "aprobado":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este pedido ya tiene un pago aprobado.",
+        )
+
     backend_url = settings.NGROK_URL or settings.VITE_API_URL or "http://localhost:8000"
     backend_url = backend_url.rstrip("/")
     back_urls = {
@@ -247,6 +293,40 @@ def crear_pago(uow: SQLModelUnitOfWork, usuario: Usuario, pedido_id: int) -> Pag
     }
 
     idempotency_key = str(uuid.uuid4())
+    pago = pago_existente
+
+    if pago is None:
+        pago = Pago(
+            pedido_id=pedido_id,
+            monto=pedido.total,
+            estado="iniciando",
+            transaction_amount=pedido.total,
+            external_reference=str(pedido_id),
+            idempotency_key=idempotency_key,
+        )
+        try:
+            uow.pagos.create(pago)
+        except IntegrityError:
+            # Puede pasar si el usuario hace doble clic y dos requests llegan casi
+            # al mismo tiempo. Se recupera el pago existente en vez de explotar.
+            uow.session.rollback()
+            pago = _pago_por_pedido_o_referencia(uow, pedido_id)
+            if pago and pago.estado == "pendiente" and pago.mp_preference_id and pago.mp_init_point:
+                return _response_desde_pago(pago, settings)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Ya existe un intento de pago para este pedido. Volvé a intentar en unos segundos.",
+            )
+    else:
+        pago.monto = pedido.total
+        pago.transaction_amount = pedido.total
+        pago.estado = "iniciando"
+        pago.mp_status = None
+        pago.mp_status_detail = None
+        pago.idempotency_key = idempotency_key
+        pago.updated_at = datetime.now(timezone.utc)
+        uow.pagos.update(pago)
+        uow.session.flush()
 
     try:
         mp_data = _crear_preferencia_mp(
@@ -256,27 +336,34 @@ def crear_pago(uow: SQLModelUnitOfWork, usuario: Usuario, pedido_id: int) -> Pag
             back_urls=back_urls,
             idempotency_key=idempotency_key,
         )
-    except RuntimeError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    pago = Pago(
-        pedido_id=pedido_id,
-        monto=pedido.total,
-        estado="pendiente",
-        mp_preference_id=mp_data["preference_id"],
-        mp_init_point=mp_data.get("init_point") or mp_data.get("sandbox_init_point"),
-        transaction_amount=pedido.total,
-        external_reference=str(pedido_id),
-        idempotency_key=idempotency_key,
-    )
-    uow.session.add(pago)
-    uow.session.flush()
+        pago.estado = "pendiente"
+        pago.mp_preference_id = mp_data["preference_id"]
+        pago.mp_init_point = mp_data.get("init_point") or mp_data.get("sandbox_init_point")
+        pago.transaction_amount = pedido.total
+        pago.external_reference = str(pedido_id)
+        pago.idempotency_key = idempotency_key
+        pago.updated_at = datetime.now(timezone.utc)
+        uow.pagos.update(pago)
+        uow.session.flush()
+
+    except RuntimeError as e:
+        # No dejamos el pago en estado "iniciando". Se persiste como cancelado
+        # para que el usuario pueda volver a generar una preferencia limpia.
+        motivo = str(e)
+        try:
+            _cancelar_pago_local_por_error(uow, pago, motivo)
+            uow.session.commit()
+        except Exception:
+            logger.exception("No se pudo marcar como cancelado el pago fallido del pedido %s", pedido_id)
+            uow.session.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=motivo)
 
     return PagoCrearResponse(
         pago_id=pago.id,
-        preference_id=mp_data["preference_id"],
-        init_point=mp_data.get("init_point"),
-        sandbox_init_point=mp_data.get("sandbox_init_point"),
+        preference_id=pago.mp_preference_id or "",
+        init_point=pago.mp_init_point,
+        sandbox_init_point=None,
         public_key=settings.MP_PUBLIC_KEY,
     )
 
@@ -366,7 +453,7 @@ def procesar_webhook(uow: SQLModelUnitOfWork, data: dict, query_params: Optional
         pedido_estado_anterior = pedido_antes.estado_codigo if pedido_antes else None
 
         _actualizar_pago_desde_mp(pago, int(pago_mp_id), mp_info, nuevo_estado)
-        uow.session.add(pago)
+        uow.pagos.update(pago)
 
         if nuevo_estado == "aprobado":
             pedido_service.confirmar_por_pago(uow, pago.pedido_id)
@@ -415,7 +502,7 @@ def confirmar_pago(
 
         if pago_local:
             _actualizar_pago_desde_mp(pago_local, resolved_payment_id, mp_info, nuevo_estado)
-            uow.session.add(pago_local)
+            uow.pagos.update(pago_local)
 
             if nuevo_estado == "aprobado":
                 pedido_service.confirmar_por_pago(uow, pedido_id, usuario_id=None, motivo="Pago confirmado por retorno de MercadoPago.")

@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import ProductCard from "../components/store/ProductCard";
 import { useProductos } from "../hooks/useProductos";
@@ -6,39 +7,30 @@ import { useProductos } from "../hooks/useProductos";
 const PAGE_SIZE = 8;
 
 export default function StoreHomePage() {
-  const [search, setSearch] = useState("");
-  const [currentSearch, setCurrentSearch] = useState("");
+  const [searchParams] = useSearchParams();
+  const query = searchParams.get("q")?.trim() ?? "";
   const [page, setPage] = useState(1);
-  const productosQuery = useProductos(currentSearch, page, PAGE_SIZE, { disponible: true });
+  const productosQuery = useProductos(query, page, PAGE_SIZE, { disponible: true });
   const canGoNext = useMemo(() => (productosQuery.data?.length ?? 0) === PAGE_SIZE, [productosQuery.data]);
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  useEffect(() => {
     setPage(1);
-    setCurrentSearch(search);
-  }
+  }, [query]);
 
   return (
     <section className="space-y-6">
       <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-500/20 to-sky-500/10 p-8">
-        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-200">Home store</p>
-        <h2 className="mt-3 text-4xl font-bold text-white">Catálogo público</h2>
+        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-200">Catálogo</p>
+        <h2 className="mt-3 text-4xl font-bold text-white">Productos disponibles</h2>
         <p className="mt-3 max-w-2xl text-slate-300">
           Productos reales del backend, filtrados por disponibilidad. El carrito queda persistido con Zustand + localStorage.
         </p>
+        {query ? (
+          <p className="mt-4 rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
+            Resultado de búsqueda para <span className="font-semibold text-emerald-300">{query}</span>
+          </p>
+        ) : null}
       </div>
-
-      <form className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/5 p-4 md:flex-row" onSubmit={handleSubmit}>
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Buscar productos"
-          className="flex-1 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-500"
-        />
-        <button type="submit" className="rounded-2xl bg-emerald-500 px-5 py-3 font-semibold text-white hover:bg-emerald-400">
-          Buscar
-        </button>
-      </form>
 
       {productosQuery.isLoading ? <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-slate-300">Cargando productos...</div> : null}
 

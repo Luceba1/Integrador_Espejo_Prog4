@@ -29,6 +29,8 @@ export default function ProductosPage() {
   const [currentSearch, setCurrentSearch] = useState("");
   const [page, setPage] = useState(1);
   const [incluirEliminados, setIncluirEliminados] = useState(false);
+  const [disponibilidadFilter, setDisponibilidadFilter] = useState("todos");
+  const [categoriaFilter, setCategoriaFilter] = useState("");
   const [exportando, setExportando] = useState(false);
 
   const { hasRole } = useAuth();
@@ -38,7 +40,11 @@ export default function ProductosPage() {
   const categoriasQuery = useCategorias();
   const ingredientesQuery = useIngredientes();
   const unidadesQuery = useUnidadesMedida();
-  const productosQuery = useProductos(currentSearch, page, PAGE_SIZE, { incluir_eliminados: incluirEliminados });
+  const productosQuery = useProductos(currentSearch, page, PAGE_SIZE, {
+    incluir_eliminados: incluirEliminados,
+    disponible: disponibilidadFilter === "todos" ? undefined : disponibilidadFilter === "disponibles",
+    categoria_id: categoriaFilter ? Number(categoriaFilter) : undefined,
+  });
 
   const crearMutation = useCrearProducto();
   const actualizarMutation = useActualizarProducto();
@@ -60,6 +66,15 @@ export default function ProductosPage() {
     event.preventDefault();
     setPage(1);
     setCurrentSearch(search);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setCurrentSearch("");
+    setDisponibilidadFilter("todos");
+    setCategoriaFilter("");
+    setIncluirEliminados(false);
+    setPage(1);
   }
 
   function handleNew() {
@@ -192,19 +207,41 @@ export default function ProductosPage() {
       }
     >
       <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-        <form className="flex flex-col gap-3 md:flex-row" onSubmit={handleSearchSubmit}>
+        <form className="grid gap-3 xl:grid-cols-[1fr_190px_220px_auto_auto]" onSubmit={handleSearchSubmit}>
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar por nombre o descripción"
-            className="flex-1 rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-500"
           />
+          <select
+            value={disponibilidadFilter}
+            onChange={(event) => { setDisponibilidadFilter(event.target.value); setPage(1); }}
+            className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none"
+          >
+            <option value="todos">Todos</option>
+            <option value="disponibles">Disponibles</option>
+            <option value="no_disponibles">No disponibles</option>
+          </select>
+          <select
+            value={categoriaFilter}
+            onChange={(event) => { setCategoriaFilter(event.target.value); setPage(1); }}
+            className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none"
+          >
+            <option value="">Todas las categorías</option>
+            {(categoriasQuery.data ?? []).map((categoria) => (
+              <option key={categoria.id} value={categoria.id}>{categoria.nombre}</option>
+            ))}
+          </select>
           <button
             type="submit"
             disabled={productosQuery.isFetching}
             className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-slate-100 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Buscar
+          </button>
+          <button type="button" onClick={clearFilters} className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-slate-100 hover:bg-white/10">
+            Limpiar
           </button>
         </form>
         <label className="mt-3 flex items-center gap-2 text-sm text-slate-300">

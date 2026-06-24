@@ -121,3 +121,22 @@ async def websocket_pedido(websocket: WebSocket, pedido_id: int, token: str | No
     except Exception:  # noqa: BLE001
         manager.disconnect(websocket)
         await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+
+
+@router.websocket("/catalogo")
+async def websocket_catalogo(websocket: WebSocket):
+    """Canal público de catálogo.
+
+    La store lo usa para invalidar productos cuando administración cambia precios,
+    ingredientes, disponibilidad o recetas. No expone datos privados: solo avisa
+    que el catálogo debe refrescarse.
+    """
+    await manager.connect_catalog(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception:  # noqa: BLE001
+        manager.disconnect(websocket)
+        await websocket.close(code=status.WS_1011_INTERNAL_ERROR)

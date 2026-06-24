@@ -5,6 +5,7 @@ import RoleGuard from "../components/auth/RoleGuard";
 import AppShell from "../components/layout/AppShell";
 import AdminHomePage from "../pages/AdminHomePage";
 import AdminUsuariosPage from "../pages/AdminUsuariosPage";
+import EmpresaConfigPage from "../pages/EmpresaConfigPage";
 import CajeroPedidosPage from "../pages/CajeroPedidosPage";
 import CategoriasPage from "../pages/CategoriasPage";
 import IngredientesPage from "../pages/IngredientesPage";
@@ -64,7 +65,10 @@ export const router = createBrowserRouter([
           },
           {
             element: <RoleGuard roles={["ADMIN"]} />,
-            children: [{ path: "usuarios", element: <AdminUsuariosPage /> }],
+            children: [
+              { path: "usuarios", element: <AdminUsuariosPage /> },
+              { path: "empresa", element: <EmpresaConfigPage /> },
+            ],
           },
           { path: "sin-permisos", element: <SinPermisosPage /> },
         ],

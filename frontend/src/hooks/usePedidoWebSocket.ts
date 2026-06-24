@@ -91,6 +91,9 @@ export function usePedidoWebSocket({ mode, pedidoId, enabled = true }: UsePedido
           registerEvent(parsed);
           // La consigna pide invalidación/sincronización del estado servidor ante eventos WS.
           void queryClient.invalidateQueries({ queryKey: ["pedidos"] });
+          void queryClient.invalidateQueries({ queryKey: ["productos"] });
+          void queryClient.invalidateQueries({ queryKey: ["producto"] });
+          void queryClient.invalidateQueries({ queryKey: ["ingredientes"] });
           void queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] });
         } catch {
           // Se ignoran mensajes no JSON para no cortar la conexión.

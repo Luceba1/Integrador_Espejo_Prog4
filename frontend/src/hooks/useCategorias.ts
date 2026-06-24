@@ -4,11 +4,12 @@ import {
   createCategoria,
   deleteCategoria,
   getCategorias,
+  type CategoriaQueryParams,
   updateCategoria,
   activarCategoria,
 } from "../services/categoriaService";
 
-export function useCategorias(params?: { page?: number; size?: number; incluir_eliminadas?: boolean }) {
+export function useCategorias(params?: CategoriaQueryParams) {
   return useQuery({
     queryKey: ["categorias", params],
     queryFn: () => getCategorias(params),

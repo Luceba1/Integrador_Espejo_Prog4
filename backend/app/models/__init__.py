@@ -15,6 +15,7 @@ from app.models.detalle_pedido import DetallePedido
 from app.models.historial_estado_pedido import HistorialEstadoPedido
 from app.models.pago import Pago
 from app.models.refresh_token import RefreshToken
+from app.models.configuracion_empresa import ConfiguracionEmpresa
 
 __all__ = [
     "Categoria",
@@ -34,4 +35,5 @@ __all__ = [
     "HistorialEstadoPedido",
     "Pago",
     "RefreshToken",
+    "ConfiguracionEmpresa",
 ]

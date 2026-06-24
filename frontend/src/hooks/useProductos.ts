@@ -11,10 +11,12 @@ import {
   activarProducto,
 } from "../services/productoService";
 
-export function useProductos(search: string, page: number, size: number, filters?: { disponible?: boolean; incluir_eliminados?: boolean }) {
+export function useProductos(search: string, page: number, size: number, filters?: { disponible?: boolean; incluir_eliminados?: boolean; categoria_id?: number }) {
   return useQuery({
     queryKey: ["productos", search, page, size, filters],
     queryFn: () => getProductos(search, page, size, filters),
+    refetchInterval: filters?.disponible === true ? 15000 : false,
+    refetchIntervalInBackground: false,
   });
 }
 
@@ -23,6 +25,8 @@ export function useProducto(id: number) {
     queryKey: ["producto", id],
     queryFn: () => getProductoById(id),
     enabled: Number.isInteger(id) && id > 0,
+    refetchInterval: 15000,
+    refetchIntervalInBackground: false,
   });
 }
 

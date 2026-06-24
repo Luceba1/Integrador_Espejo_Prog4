@@ -18,10 +18,19 @@ const PAGE_SIZE = 10;
 export default function UnidadesMedidaPage() {
   const [page, setPage] = useState(1);
   const [incluirEliminadas, setIncluirEliminadas] = useState(false);
+  const [search, setSearch] = useState("");
+  const [currentSearch, setCurrentSearch] = useState("");
+  const [tipoFilter, setTipoFilter] = useState("");
   const [exportando, setExportando] = useState(false);
   const [openForm, setOpenForm] = useState(false);
 
-  const unidadesQuery = useUnidadesMedida({ page, size: PAGE_SIZE, incluir_eliminadas: incluirEliminadas });
+  const unidadesQuery = useUnidadesMedida({
+    page,
+    size: PAGE_SIZE,
+    incluir_eliminadas: incluirEliminadas,
+    search: currentSearch,
+    tipo: tipoFilter || undefined,
+  });
   const crearMutation = useCrearUnidadMedida();
   const actualizarMutation = useActualizarUnidadMedida();
   const eliminarMutation = useEliminarUnidadMedida();
@@ -35,6 +44,20 @@ export default function UnidadesMedidaPage() {
 
   const isSaving = crearMutation.isPending || actualizarMutation.isPending;
   const canGoNext = useMemo(() => (unidadesQuery.data?.length ?? 0) === PAGE_SIZE, [unidadesQuery.data]);
+
+  function handleSearchSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPage(1);
+    setCurrentSearch(search);
+  }
+
+  function clearFilters() {
+    setSearch("");
+    setCurrentSearch("");
+    setTipoFilter("");
+    setIncluirEliminadas(false);
+    setPage(1);
+  }
 
   function resetForm() {
     setEditing(null);
@@ -126,7 +149,7 @@ export default function UnidadesMedidaPage() {
   return (
     <PageContainer
       title="Unidades de medida"
-      subtitle="Catálogo v7 para indicar si un producto se vende por unidad, kilo, litro u otra medida."
+      subtitle="Catálogo v7 con búsqueda y filtros para administrar unidades de medida."
       actions={
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={handleExport} disabled={exportando} className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 font-semibold text-emerald-100 hover:bg-emerald-500/20 disabled:opacity-60">
@@ -140,7 +163,29 @@ export default function UnidadesMedidaPage() {
     >
       <div className="space-y-4">
         <div className="rounded-3xl border border-white/10 bg-white/5 p-4">
-          <label className="flex items-center gap-2 text-sm text-slate-300">
+          <form className="grid gap-3 lg:grid-cols-[1fr_180px_auto_auto]" onSubmit={handleSearchSubmit}>
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar por nombre o símbolo"
+              className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none placeholder:text-slate-500"
+            />
+            <select
+              value={tipoFilter}
+              onChange={(event) => { setTipoFilter(event.target.value); setPage(1); }}
+              className="rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-white outline-none"
+            >
+              <option value="">Todos los tipos</option>
+              {TIPOS.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+            <button type="submit" disabled={unidadesQuery.isFetching} className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-slate-100 hover:bg-white/10 disabled:opacity-60">
+              Buscar
+            </button>
+            <button type="button" onClick={clearFilters} className="rounded-2xl border border-white/10 px-4 py-3 font-semibold text-slate-100 hover:bg-white/10">
+              Limpiar
+            </button>
+          </form>
+          <label className="mt-4 flex items-center gap-2 text-sm text-slate-300">
             <input type="checkbox" checked={incluirEliminadas} onChange={(event) => { setIncluirEliminadas(event.target.checked); setPage(1); }} />
             Ver unidades eliminadas
           </label>
@@ -164,16 +209,16 @@ export default function UnidadesMedidaPage() {
                 </thead>
                 <tbody>
                   {unidadesQuery.data.map((unidad) => (
-                    <tr key={unidad.id} className={`border-t border-white/5 transition ${unidad.deleted_at ? "bg-slate-950/70 opacity-50 grayscale" : ""}`}>
+                    <tr key={unidad.id} className={`border-t border-white/5 transition ${unidad.deleted_at ? "bg-slate-950/70 text-slate-500" : ""}`}>
                       <td className="px-5 py-4 font-semibold text-white">{unidad.nombre}</td>
                       <td className="px-5 py-4 text-slate-300">{unidad.simbolo}</td>
                       <td className="px-5 py-4"><span className="rounded-full bg-sky-500/15 px-3 py-1 text-xs font-semibold text-sky-200">{unidad.tipo}</span></td>
                       <td className="px-5 py-4">{unidad.deleted_at ? <span className="rounded-full bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-200">Eliminada</span> : <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-200">Activa</span>}</td>
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
-                          {unidad.deleted_at ? <button type="button" onClick={() => handleActivate(unidad)} disabled={activarMutation.isPending} className="rounded-xl bg-emerald-500/15 px-3 py-2 font-medium text-emerald-200 hover:bg-emerald-500/25 disabled:opacity-60">Activar</button> : null}
-                          <button type="button" onClick={() => startEdit(unidad)} disabled={Boolean(unidad.deleted_at)} className="rounded-xl bg-amber-500/15 px-3 py-2 font-medium text-amber-200 hover:bg-amber-500/25 disabled:opacity-60">Editar</button>
-                          <button type="button" onClick={() => handleDelete(unidad)} disabled={eliminarMutation.isPending || Boolean(unidad.deleted_at)} className="rounded-xl bg-rose-500/15 px-3 py-2 font-medium text-rose-200 hover:bg-rose-500/25 disabled:opacity-60">Eliminar</button>
+                          {unidad.deleted_at ? <button type="button" onClick={() => handleActivate(unidad)} disabled={activarMutation.isPending} className="rounded-xl bg-emerald-500 px-3 py-2 font-semibold text-white shadow-lg shadow-emerald-500/20 hover:bg-emerald-400 disabled:opacity-60">Activar</button> : null}
+                          <button type="button" onClick={() => startEdit(unidad)} disabled={Boolean(unidad.deleted_at)} className={unidad.deleted_at ? "cursor-not-allowed rounded-xl bg-slate-800 px-3 py-2 font-medium text-slate-500" : "rounded-xl bg-amber-500/15 px-3 py-2 font-medium text-amber-200 hover:bg-amber-500/25 disabled:opacity-60"}>Editar</button>
+                          <button type="button" onClick={() => handleDelete(unidad)} disabled={eliminarMutation.isPending || Boolean(unidad.deleted_at)} className={unidad.deleted_at ? "cursor-not-allowed rounded-xl bg-slate-800 px-3 py-2 font-medium text-slate-500" : "rounded-xl bg-rose-500/15 px-3 py-2 font-medium text-rose-200 hover:bg-rose-500/25 disabled:opacity-60"}>Eliminar</button>
                         </div>
                       </td>
                     </tr>

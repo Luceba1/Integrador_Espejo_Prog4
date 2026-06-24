@@ -1,3 +1,4 @@
+from sqlalchemy import or_
 from sqlmodel import Session, select
 
 from app.models.unidad_medida import UnidadMedida
@@ -9,13 +10,33 @@ class UnidadMedidaRepository(BaseRepository[UnidadMedida]):
         super().__init__(session, UnidadMedida)
 
 
-    def list_paginated(self, incluir_eliminadas: bool = False, page: int = 1, size: int = 50) -> list[UnidadMedida]:
+    def list_paginated(
+        self,
+        incluir_eliminadas: bool = False,
+        page: int = 1,
+        size: int = 50,
+        search: str | None = None,
+        tipo: str | None = None,
+    ) -> list[UnidadMedida]:
         statement = select(UnidadMedida)
         if not incluir_eliminadas:
             statement = statement.where(
                 UnidadMedida.activo == True,  # noqa: E712
                 UnidadMedida.deleted_at.is_(None),  # type: ignore[attr-defined]
             )
+
+        if search:
+            pattern = f"%{search}%"
+            statement = statement.where(
+                or_(
+                    UnidadMedida.nombre.ilike(pattern),
+                    UnidadMedida.simbolo.ilike(pattern),
+                )
+            )
+
+        if tipo:
+            statement = statement.where(UnidadMedida.tipo == tipo)
+
         statement = statement.order_by(UnidadMedida.nombre).offset((page - 1) * size).limit(size)
         return list(self.session.exec(statement).all())
 

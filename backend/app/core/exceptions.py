@@ -35,6 +35,12 @@ def _first_validation_error(exc: RequestValidationError) -> tuple[str, str | Non
     # Omitimos la primera parte típica: body/query/path.
     field = ".".join(str(item) for item in loc[1:]) if len(loc) > 1 else None
     message = str(first.get("msg") or "Valor inválido.")
+
+    # Evitamos mostrar mensajes técnicos de Pydantic/email-validator al usuario.
+    # Ejemplo anterior: "email: value is not a valid email address..."
+    if field == "email":
+        return "Ingresá un email válido.", field
+
     if field:
         return f"{field}: {message}", field
     return message, None

@@ -31,6 +31,7 @@ class ConnectionManager:
         self.admin_connections: set[WebSocket] = set()
         self.user_connections: dict[int, set[WebSocket]] = defaultdict(set)
         self.order_connections: dict[int, set[WebSocket]] = defaultdict(set)
+        self.catalog_connections: set[WebSocket] = set()
 
     async def connect(self, websocket: WebSocket) -> None:
         """Canal legacy usado por /cocina/ws."""
@@ -42,6 +43,7 @@ class ConnectionManager:
         """Desconecta un socket de cualquier canal donde esté registrado."""
         self.active_connections.discard(websocket)
         self.admin_connections.discard(websocket)
+        self.catalog_connections.discard(websocket)
 
         for pedido_id in list(self.order_connections.keys()):
             self.order_connections[pedido_id].discard(websocket)
@@ -77,6 +79,12 @@ class ConnectionManager:
             pedido_id,
             len(self.order_connections[pedido_id]),
         )
+
+    async def connect_catalog(self, websocket: WebSocket) -> None:
+        """Canal público para avisar cambios de catálogo/precios a la store."""
+        await websocket.accept()
+        self.catalog_connections.add(websocket)
+        logger.info("Nueva conexión WebSocket catálogo. Total catálogo: %s", len(self.catalog_connections))
 
     async def _send_to_many(self, connections: set[WebSocket], payload: dict[str, Any]) -> None:
         if not connections:
@@ -155,6 +163,15 @@ class ConnectionManager:
         await self.broadcast_order(pedido_id, event, data)
         # Compatibilidad con pantalla KDS anterior.
         await self.broadcast(event, data)
+
+    async def broadcast_catalog_event(self, event: str, data: dict[str, Any] | None = None) -> None:
+        """Emite eventos públicos para que la store refresque productos/precios sin F5."""
+        payload = {
+            "event": event,
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "data": data or {},
+        }
+        await self._send_to_many(self.catalog_connections, payload)
 
 
 manager = ConnectionManager()

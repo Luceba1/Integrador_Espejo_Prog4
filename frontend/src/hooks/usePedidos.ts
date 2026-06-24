@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 
 import {
   avanzarEstadoPedido,
@@ -8,6 +8,16 @@ import {
   getPedidos,
   createPedido,
 } from "../services/pedidoService";
+
+async function invalidatePedidoYStockQueries(queryClient: QueryClient) {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["pedidos"] }),
+    queryClient.invalidateQueries({ queryKey: ["productos"] }),
+    queryClient.invalidateQueries({ queryKey: ["producto"] }),
+    queryClient.invalidateQueries({ queryKey: ["ingredientes"] }),
+    queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] }),
+  ]);
+}
 
 export function usePedidos(filters: { estado_codigo?: string; usuario_id?: number; page: number; size: number }) {
   return useQuery({
@@ -37,7 +47,7 @@ export function useAvanzarEstadoPedido() {
     mutationFn: ({ id, estado_codigo, motivo, recuperar_stock }: { id: number; estado_codigo: string; motivo?: string; recuperar_stock?: boolean }) =>
       avanzarEstadoPedido(id, { estado_codigo, motivo, recuperar_stock }),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["pedidos"] });
+      await invalidatePedidoYStockQueries(queryClient);
     },
   });
 }
@@ -48,7 +58,7 @@ export function useCancelarPedido() {
   return useMutation({
     mutationFn: ({ id, motivo }: { id: number; motivo?: string }) => cancelarPedido(id, motivo),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["pedidos"] });
+      await invalidatePedidoYStockQueries(queryClient);
     },
   });
 }
@@ -59,7 +69,7 @@ export function useCrearPedido() {
   return useMutation({
     mutationFn: createPedido,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["pedidos"] });
+      await invalidatePedidoYStockQueries(queryClient);
     },
   });
 }

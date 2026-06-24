@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { useCancelarPedido, useEstadosPedido, usePedidos } from "../hooks/usePedidos";
 import { usePedidoWebSocket } from "../hooks/usePedidoWebSocket";
@@ -39,6 +40,7 @@ function getPaymentIdFromParams(searchParams: URLSearchParams) {
 }
 
 export default function MisPedidosPage() {
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const creado = searchParams.get("creado");
   const pedidoParam = searchParams.get("pedido");
@@ -79,6 +81,12 @@ export default function MisPedidosPage() {
         }
 
         await pedidosQuery.refetch();
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["productos"] }),
+          queryClient.invalidateQueries({ queryKey: ["producto"] }),
+          queryClient.invalidateQueries({ queryKey: ["ingredientes"] }),
+          queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] }),
+        ]);
       } catch (error) {
         setPaymentMessage(error instanceof Error ? error.message : "No se pudo confirmar el pago con MercadoPago.");
       } finally {
@@ -106,6 +114,12 @@ export default function MisPedidosPage() {
 
     try {
       await cancelarMutation.mutateAsync({ id: pedido.id, motivo: "Cancelado desde Store por el cliente" });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["productos"] }),
+        queryClient.invalidateQueries({ queryKey: ["producto"] }),
+        queryClient.invalidateQueries({ queryKey: ["ingredientes"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] }),
+      ]);
       window.alert(
         pedido.estado_codigo === "CONFIRMADO"
           ? "Pedido cancelado. El stock de ingredientes fue recuperado correctamente."
@@ -132,7 +146,10 @@ export default function MisPedidosPage() {
   return (
     <section className="space-y-6">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Pedidos</p>
+        <Link to="/store" className="inline-flex items-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-bold text-emerald-100 shadow-lg shadow-emerald-950/30 transition hover:bg-emerald-500/25 hover:text-white">
+          ← Volver
+        </Link>
+        <p className="mt-4 text-sm font-semibold uppercase tracking-[0.25em] text-emerald-300">Pedidos</p>
         <h2 className="mt-2 text-3xl font-bold text-white">Mis pedidos</h2>
         <p className="mt-2 text-slate-400">El usuario CLIENT ve solamente sus propios pedidos.</p>
         <p className="mt-2 text-xs text-slate-500">WebSocket pedidos: {pedidoWs.status === "connected" ? "conectado" : pedidoWs.status}</p>
@@ -182,6 +199,17 @@ export default function MisPedidosPage() {
                     <EstadoBadge estado={pedido.estado_codigo} />
                   </div>
                   <p className="mt-2 text-sm text-slate-400">Pago {pedido.forma_pago_codigo} · {new Date(pedido.created_at).toLocaleString("es-AR")}</p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+                    <span className={pedido.tipo_entrega === "ENVIO" ? "rounded-full bg-sky-500/15 px-3 py-1 text-sky-200" : "rounded-full bg-emerald-500/15 px-3 py-1 text-emerald-200"}>
+                      {pedido.tipo_entrega === "ENVIO" ? "Envío a domicilio" : "Retiro en el lugar"}
+                    </span>
+                  </div>
+                  {pedido.tipo_entrega === "RETIRO" && pedido.domicilio_retiro_snap ? (
+                    <p className="mt-2 text-sm text-slate-400">Retiro: {pedido.domicilio_retiro_snap}</p>
+                  ) : null}
+                  {pedido.forma_pago_codigo === "TRANSFERENCIA" && pedido.datos_transferencia_snap ? (
+                    <p className="mt-2 text-sm text-sky-200">Transferencia: {pedido.datos_transferencia_snap}</p>
+                  ) : null}
                   <p className="mt-2 text-lg font-semibold text-emerald-300">{formatMoney(Number(pedido.total))}</p>
                 </div>
                 <div className="flex flex-col gap-2 md:items-end">

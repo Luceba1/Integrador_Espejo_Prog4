@@ -16,6 +16,7 @@ class PedidoItemCreate(SQLModel):
 
 class PedidoCreate(SQLModel):
     direccion_id: Optional[int] = Field(default=None, ge=1)
+    tipo_entrega: str = Field(default="RETIRO", min_length=5, max_length=20)
     forma_pago_codigo: str = Field(min_length=2, max_length=40)
     notas: Optional[str] = Field(default=None, max_length=500)
     descuento: Decimal = Field(default=0, max_digits=10, decimal_places=2, ge=0)
@@ -68,6 +69,9 @@ class PedidoRead(SQLModel):
     direccion_id: Optional[int] = None
     estado_codigo: str
     forma_pago_codigo: str
+    tipo_entrega: str
+    domicilio_retiro_snap: Optional[str] = None
+    datos_transferencia_snap: Optional[str] = None
     subtotal: Decimal
     descuento: Decimal
     costo_envio: Decimal

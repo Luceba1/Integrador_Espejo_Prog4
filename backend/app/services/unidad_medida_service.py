@@ -20,8 +20,21 @@ def _not_found() -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unidad de medida no encontrada.")
 
 
-def listar(uow: SQLModelUnitOfWork, incluir_eliminadas: bool = False, page: int = 1, size: int = 50) -> list[UnidadMedida]:
-    return uow.unidades_medida.list_paginated(incluir_eliminadas=incluir_eliminadas, page=page, size=size)
+def listar(
+    uow: SQLModelUnitOfWork,
+    incluir_eliminadas: bool = False,
+    page: int = 1,
+    size: int = 50,
+    search: str | None = None,
+    tipo: str | None = None,
+) -> list[UnidadMedida]:
+    return uow.unidades_medida.list_paginated(
+        incluir_eliminadas=incluir_eliminadas,
+        page=page,
+        size=size,
+        search=search,
+        tipo=tipo,
+    )
 
 
 def obtener(uow: SQLModelUnitOfWork, unidad_id: int, incluir_eliminadas: bool = False) -> UnidadMedida:

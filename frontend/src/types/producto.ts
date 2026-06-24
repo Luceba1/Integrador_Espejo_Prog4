@@ -4,7 +4,7 @@ import type { UnidadMedida } from "./unidadMedida";
 
 export interface ProductoIngredienteConfigurado {
   ingrediente_id: number;
-  ingrediente?: Pick<Ingrediente, "id" | "nombre" | "es_alergeno" | "stock_cantidad" | "unidad_medida" | "unidad_medida_id"> | null;
+  ingrediente?: Pick<Ingrediente, "id" | "nombre" | "es_alergeno" | "stock_cantidad" | "unidad_medida" | "unidad_medida_id" | "precio_costo_total" | "precio_costo_unitario" | "precio_por_unidad"> | null;
   cantidad: number;
   unidad_medida_id?: number | null;
   unidad_medida?: UnidadMedida | null;
@@ -16,6 +16,9 @@ export interface Producto {
   nombre: string;
   descripcion?: string | null;
   precio_base: number;
+  margen_ganancia_porcentaje: number;
+  costo_ingredientes?: number;
+  precio_sugerido?: number;
   unidad_venta_id?: number | null;
   unidad_venta?: UnidadMedida | null;
   imagenes_url: string[];
@@ -25,7 +28,7 @@ export interface Producto {
   activo: boolean;
   deleted_at?: string | null;
   categorias: Pick<Categoria, "id" | "nombre" | "parent_id">[];
-  ingredientes: Pick<Ingrediente, "id" | "nombre" | "es_alergeno" | "stock_cantidad" | "unidad_medida" | "unidad_medida_id">[];
+  ingredientes: Pick<Ingrediente, "id" | "nombre" | "es_alergeno" | "stock_cantidad" | "unidad_medida" | "unidad_medida_id" | "precio_costo_total" | "precio_costo_unitario" | "precio_por_unidad">[];
   ingredientes_configurados?: ProductoIngredienteConfigurado[];
 }
 
@@ -40,6 +43,9 @@ export interface ProductoPayload {
   nombre: string;
   descripcion?: string | null;
   precio_base: number;
+  margen_ganancia_porcentaje: number;
+  costo_ingredientes?: number;
+  precio_sugerido?: number;
   unidad_venta_id?: number | null;
   imagenes_url?: string[];
   stock_cantidad?: number;

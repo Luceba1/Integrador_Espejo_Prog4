@@ -17,10 +17,19 @@ def listar_unidades_medida(
     uow: UowDep,
     _usuario: AdminStockDep,
     incluir_eliminadas: Annotated[bool, Query()] = False,
+    search: Annotated[str | None, Query(max_length=100)] = None,
+    tipo: Annotated[str | None, Query(max_length=30)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> list[UnidadMedidaRead]:
-    return unidad_medida_service.listar(uow, incluir_eliminadas=incluir_eliminadas, page=page, size=size)
+    return unidad_medida_service.listar(
+        uow,
+        incluir_eliminadas=incluir_eliminadas,
+        search=search,
+        tipo=tipo,
+        page=page,
+        size=size,
+    )
 
 
 @router.get("/{unidad_id}", response_model=UnidadMedidaRead)

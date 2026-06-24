@@ -12,6 +12,7 @@ interface CarritoStoreState {
   updateCantidad: (productoId: number, cantidad: number) => void;
   removeItem: (productoId: number) => void;
   clearCart: () => void;
+  syncProducto: (producto: Producto) => void;
 }
 
 function normalizarItems(items: CarritoItem[]): CarritoItem[] {
@@ -82,6 +83,28 @@ export const useCarritoStore = create<CarritoStoreState>()(
       },
 
       clearCart: () => set({ items: [] }),
+
+      syncProducto: (producto) => {
+        set((state) => ({
+          items: state.items
+            .map((item) => {
+              if (item.producto_id !== producto.id) return item;
+
+              const maxCantidad = Math.max(0, producto.stock_cantidad);
+              if (!producto.disponible || maxCantidad <= 0) return null;
+
+              return {
+                ...item,
+                nombre: producto.nombre,
+                precio_unitario: Number(producto.precio_base),
+                imagen_url: producto.imagenes_url?.[0] ?? null,
+                stock_cantidad: maxCantidad,
+                cantidad: Math.min(item.cantidad, maxCantidad),
+              };
+            })
+            .filter((item): item is CarritoItem => item !== null && item.cantidad > 0),
+        }));
+      },
     }),
     {
       name: STORAGE_KEY,

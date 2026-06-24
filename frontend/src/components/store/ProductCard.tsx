@@ -18,6 +18,11 @@ export default function ProductCard({ producto }: { producto: Producto }) {
   const itemEnCarrito = items.find((item) => item.producto_id === producto.id);
   const cantidadEnCarrito = itemEnCarrito?.cantidad ?? 0;
   const reachedLimit = cantidadEnCarrito >= producto.stock_cantidad;
+  const ingredientesAlergenos = (
+    producto.ingredientes_configurados?.map((config) => config.ingrediente).filter(Boolean) ?? producto.ingredientes
+  ).filter((ingrediente, index, array) =>
+    Boolean(ingrediente?.es_alergeno) && array.findIndex((item) => item?.id === ingrediente?.id) === index
+  );
 
   function handleAdd() {
     if (!canAdd || reachedLimit) return;
@@ -58,9 +63,18 @@ export default function ProductCard({ producto }: { producto: Producto }) {
           ))}
         </div>
 
+        {ingredientesAlergenos.length ? (
+          <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            <p className="font-bold">⚠️ Contiene alérgenos</p>
+            <p className="mt-1 text-xs text-amber-100/80">
+              {ingredientesAlergenos.map((ingrediente) => ingrediente?.nombre).join(", ")}
+            </p>
+          </div>
+        ) : null}
+
         <div className="mt-auto pt-5">
           <p className="text-2xl font-bold text-emerald-300">
-            {formatMoney(Number(producto.precio_base))}{producto.unidad_venta ? <span className="text-sm text-slate-500"> / {producto.unidad_venta.simbolo}</span> : null}
+            {formatMoney(Number(producto.precio_base))}
           </p>
           <div className="mt-1 flex items-center justify-between gap-3 text-xs text-slate-500">
             <span>Se pueden preparar: {producto.stock_cantidad} unidades</span>

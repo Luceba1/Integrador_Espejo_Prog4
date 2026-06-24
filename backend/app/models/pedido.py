@@ -19,6 +19,9 @@ class Pedido(SQLModel, table=True):
     direccion_id: Optional[int] = Field(default=None, foreign_key="direccion_entrega.id", index=True)
     estado_codigo: str = Field(default="PENDIENTE", foreign_key="estado_pedido.codigo", index=True, max_length=40)
     forma_pago_codigo: str = Field(foreign_key="forma_pago.codigo", index=True, max_length=40)
+    tipo_entrega: str = Field(default="RETIRO", max_length=20, index=True)
+    domicilio_retiro_snap: Optional[str] = Field(default=None, max_length=255)
+    datos_transferencia_snap: Optional[str] = Field(default=None, max_length=500)
 
     subtotal: Decimal = Field(default=0, max_digits=10, decimal_places=2, ge=0)
     descuento: Decimal = Field(default=0, max_digits=10, decimal_places=2, ge=0)
